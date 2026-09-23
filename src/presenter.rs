@@ -1169,7 +1169,7 @@ fn draw_content(
     }
     // Persistent bottom-border chips: view mode + annotation count on the left (when they fit),
     // help on the right. They ride the border rather than consuming a content row.
-    let hint_text = sanitize_control(HELP_HINT);
+    let hint_text = sanitize_control(key_hint_for_width(area.width));
     let hint = Line::styled(hint_text.clone(), Style::new().fg(Color::Reset)).right_aligned();
     let annotation_chip = (active && state.annotation_count > 0)
         .then(|| sanitize_control(&format!("annotations: {}", state.annotation_count)));
@@ -2051,7 +2051,22 @@ const HELP_TITLE: &str = "Help";
 /// right-aligned one-segment affordance that `?` opens help, visible on the default screen
 /// without opening any modal. Static (first-party), so no sanitization is needed
 /// beyond the defense-in-depth `sanitize_control` applied at the call site (AC-27).
-const HELP_HINT: &str = "? help";
+const HELP_HINT: &str = "↑↓ navigate · ←→ tree · Enter open · v view · / search · Esc close · ? help";
+const HELP_HINT_MEDIUM: &str = "↑↓ navigate · Enter open · v view · Esc close · ? help";
+const HELP_HINT_NARROW: &str = "↑↓ nav · v view · Esc close · ? help";
+
+/// Pick a discoverability footer that fits the active content border without wrapping.
+/// The full hint documents the common navigation/view/search/close path; narrower panes
+/// progressively drop secondary actions while keeping view, close, and help discoverable.
+fn key_hint_for_width(width: u16) -> &'static str {
+    let inner = width.saturating_sub(2) as usize;
+    for hint in [HELP_HINT, HELP_HINT_MEDIUM, HELP_HINT_NARROW, "? help"] {
+        if Line::from(hint).width() <= inner {
+            return hint;
+        }
+    }
+    ""
+}
 /// The help overlay's desired interior WIDTH (columns) before clamping to the frame. A generous
 /// fixed size (the changelog/about bodies are unbounded — the box does NOT size to content like the
 /// finder; it clamps to the frame and the body scrolls).
@@ -2914,6 +2929,20 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect, help: &HelpView) {
                 body_area.height as usize,
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod explorer_footer_tests {
+    use super::*;
+
+    #[test]
+    fn key_footer_adapts_to_available_width() {
+        assert_eq!(key_hint_for_width(120), HELP_HINT);
+        assert_eq!(key_hint_for_width(62), HELP_HINT_MEDIUM);
+        assert_eq!(key_hint_for_width(42), HELP_HINT_NARROW);
+        assert_eq!(key_hint_for_width(10), "? help");
+        assert_eq!(key_hint_for_width(5), "");
     }
 }
 
