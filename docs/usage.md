@@ -174,9 +174,12 @@ This is launch-only. It does not retarget a Files pane that is already running; 
 
 ## Viewing a file
 
-The content pane shows **the right view for each file, automatically**: by default a changed file
-shows its **diff**, a markdown file **renders**, and anything else is **syntax-highlighted** content
-with line numbers. The top border shows the displayed file's **repo-relative path** (for example
+The content pane shows **the right view for each file, automatically**: Markdown always opens as the
+**rendered document** when the file still exists (including changed `README.md` / `CHANGELOG.md`);
+a changed non-Markdown file shows its **diff** by default, and anything else is
+**syntax-highlighted** content with line numbers. Changed Markdown still keeps `DIFF` and
+`DIFF+` in the `v` mode cycle, so Git review is one key away without replacing the normal
+document-reading experience. The top border shows the displayed file's **repo-relative path** (for example
 `src/controller/mod.rs`), while a compact bottom-border chip names the active view:
 `[MD]`, `[DIFF]`, `[DIFF+]` (full-context diff), or `[CODE]`. This makes both location and
 viewer type visible without opening help or cycling modes. Set [`changed_file_view = "content"`](configuration.md) if changed files should
