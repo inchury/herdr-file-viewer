@@ -157,11 +157,10 @@ pub struct Config {
     /// turning on for a deeply-nested layout (a Java/Maven `src/main/java/...`, a nested monorepo),
     /// where the per-segment tree spends most of the column on indentation.
     pub compact_dirs: Option<bool>,
-    /// The automatic initial view for Git-changed files: `"diff"` (the default) or `"content"`
-    /// (apply the normal file-type policy to paths that still exist: rendered Markdown, syntax
-    /// content otherwise). Deleted paths remain diff-first. A lenient string resolved by
-    /// [`resolve`]; an absent or unrecognized value preserves the default diff preference. Manual
-    /// `v` cycling remains available in either mode.
+    /// The automatic initial view for Git-changed non-Markdown files: `"diff"` (the default) or
+    /// `"content"`. Existing Markdown always opens rendered; deleted paths remain diff-first.
+    /// A lenient string resolved by [`resolve`]; an absent or unrecognized value preserves the
+    /// default diff preference for other file types. Manual `v` cycling remains available.
     pub changed_file_view: Option<String>,
     /// The initial Git **diff baseline**: `"base"` always compares against the base branch's
     /// merge-base, `"head"` compares only against `HEAD`, and absent or unrecognized values keep
@@ -338,9 +337,9 @@ pub struct EffectiveSettings {
     /// The effective **compact directory chains** switch: the config `compact_dirs` when present,
     /// else `false`. Seeds the tree at startup. Config-or-default (no env var).
     pub compact_dirs: bool,
-    /// The effective automatic view policy for Git-changed files. Config `"content"` selects the
-    /// normal file-type view; absent, invalid, or `"diff"` preserves the original diff-first
-    /// behavior. Config-or-default (no env var).
+    /// The effective automatic view policy for Git-changed non-Markdown files. Markdown is
+    /// document-first regardless of this setting; deleted paths remain diff-first.
+    /// Config-or-default (no env var).
     pub changed_file_view: crate::view_policy::ChangedFileView,
     /// An explicit startup **diff baseline** from `baseline`, or `None` when startup must retain
     /// [`crate::git::default_baseline`]'s context-smart selection. Config-or-default (no env var).
@@ -433,8 +432,8 @@ pub fn resolve(config: &Config, get_env: impl Fn(&str) -> Option<String>) -> Eff
     let compact_dirs = config.compact_dirs.unwrap_or(false);
 
     // Config > default; no env var. Lenient string match (trimmed, case-insensitive): only
-    // `content` bypasses the changed-file diff preference. Anything else preserves the original
-    // diff-first behavior, so a typo cannot silently hide Git context from an existing workflow.
+    // `content` bypasses the changed-file diff preference for non-Markdown files. Markdown is
+    // document-first in the view policy regardless. Anything else preserves diff-first for code.
     let changed_file_view = match config
         .changed_file_view
         .as_deref()
