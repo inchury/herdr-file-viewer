@@ -228,14 +228,14 @@ mod tests {
             modes,
             vec![ViewMode::Diff, ViewMode::FullDiff, ViewMode::SyntaxContent]
         );
-        // For a changed markdown file the rendered view sits after the two diff views.
+        // Markdown is document-first, but both Git review modes remain immediately reachable.
         let md = applicable_modes(&fd("README.md", true, true), ChangedFileView::Diff);
         assert_eq!(
             md,
             vec![
+                ViewMode::RenderedMarkdown,
                 ViewMode::Diff,
                 ViewMode::FullDiff,
-                ViewMode::RenderedMarkdown,
                 ViewMode::SyntaxContent
             ]
         );
