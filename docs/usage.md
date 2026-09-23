@@ -30,7 +30,7 @@ setting off unless you need it; `.git/` itself always stays hidden. The tree's *
 **bottom border shows the current branch**, so you always know *where* and *on what branch* you're
 looking.
 
-Directory names use bold weight while ordinary files stay normal-weight, and Git status letters / dirty-directory markers are bold on top of their existing status colors. This keeps the tree scannable in stock Windows Terminal and other terminals without requiring Nerd Font icons.
+Directory names use bold weight while ordinary files stay normal-weight, Git status letters / dirty-directory markers are bold on top of their existing status colors, and a file's final extension (for example `.rs`, `.md`, `.json`) is dimmed as a lightweight type cue. This keeps the tree scannable in stock Windows Terminal and other terminals without requiring Nerd Font icons.
 
 Move the cursor with `↑`/`↓` (or `k`/`j`), expand/collapse a directory with `→`/`←` (or `l`/`h`) or
 `Enter`. In the normal tree, `←` on a file or an already-collapsed directory walks to and collapses
