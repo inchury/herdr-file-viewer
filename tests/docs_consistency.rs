@@ -26,6 +26,7 @@ const OPEN_PANE_SCRIPT: &str = include_str!("../scripts/open-file-viewer.sh");
 const OPEN_PANE_PS1: &str = include_str!("../scripts/open-file-viewer.ps1");
 const OPEN_TAB_SCRIPT: &str = include_str!("../scripts/open-file-viewer-tab.sh");
 const OPEN_TAB_PS1: &str = include_str!("../scripts/open-file-viewer-tab.ps1");
+const INSTALL_RENDERERS_PS1: &str = include_str!("../scripts/install-renderers.ps1");
 
 /// The `--cwd` drift guard (#139).
 ///
@@ -111,6 +112,32 @@ fn windows_launchers_forward_open_target_to_a_fresh_viewer() {
     assert!(
         AGENT_SKILL.contains("-OpenTarget") && USAGE_DOC.contains("-OpenTarget"),
         "the agent skill and usage guide must teach the native-Windows targeted launcher"
+    );
+}
+
+/// Native Windows should have the same one-command renderer setup story as Unix.
+#[test]
+fn windows_renderer_helper_and_docs_stay_in_sync() {
+    for package_id in [
+        "charmbracelet.glow",
+        "dandavison.delta",
+        "sharkdp.bat",
+    ] {
+        assert!(
+            INSTALL_RENDERERS_PS1.contains(package_id),
+            "Windows renderer helper must keep the verified WinGet package id {package_id}"
+        );
+    }
+    assert!(
+        INSTALL_RENDERERS_PS1.contains("cargo install")
+            && INSTALL_RENDERERS_PS1.contains("git-delta"),
+        "delta/bat keep a cargo fallback when WinGet is unavailable"
+    );
+    assert!(
+        README.contains("install-renderers.ps1")
+            && USAGE_DOC.contains("## The tree")
+            && include_str!("../docs/renderers.md").contains("install-renderers.ps1"),
+        "front door and renderer docs must point Windows users at the bundled helper"
     );
 }
 

@@ -74,7 +74,8 @@ herdr plugin install smarzban/herdr-file-viewer
 
 # 2. (recommended) install the renderers, so markdown / diffs / code are styled, not plain text:
 brew install glow git-delta bat     # macOS, or use your package manager
-#   Linux / cross-platform: run scripts/install-renderers.sh from the plugin dir (`herdr plugin list`)
+#   Linux/macOS helper: ./scripts/install-renderers.sh
+#   Windows PowerShell: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-renderers.ps1
 ```
 
 Then **bind a key** in your herdr config (`~/.config/herdr/config.toml`) so one press summons it:

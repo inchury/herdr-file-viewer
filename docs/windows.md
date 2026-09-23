@@ -42,6 +42,11 @@ PowerShell launcher scripts.
 
 - **Requires herdr's preview channel.** Windows herdr binaries ship only on herdr's pre-release
   update channel, so you need to be on it before installing this plugin on Windows.
+- **Optional renderers have a Windows installer helper.** From the installed plugin directory,
+  run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-renderers.ps1`.
+  It installs `glow`, `delta`, and `bat` with WinGet when available and falls back to Cargo for
+  `delta` / `bat`. Missing renderers still degrade to plain text.
+
 - **Non-ASCII paths and pane titles are supported.** The launchers force UTF-8 before parsing
   herdr's JSON under Windows PowerShell 5.1, so names outside the active legacy code page do not
   make the viewer fall back to its plugin install directory.

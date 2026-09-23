@@ -10,6 +10,9 @@ All notable changes to this project are documented here. The format is based on
 ### Fixed
 - Native Windows targeted opens now work through the shipped PowerShell split/tab launchers: `-OpenTarget path[:line]` is forwarded to a fresh viewer pane instead of requiring WSL or silently focusing an existing viewer that cannot consume the target. → [Windows](docs/windows.md) · [usage](docs/usage.md#open-at-a-known-file)
 
+### Added
+- Native Windows now ships `scripts/install-renderers.ps1`, a best-effort WinGet installer for `glow`, `delta`, and `bat` with Cargo fallback for the Rust renderers. → [renderers](docs/renderers.md) · [Windows](docs/windows.md)
+
 ### Changed
 - Explorer tree hierarchy is easier to scan: directories and Git status markers use bold weight while ordinary files remain normal-weight, with no Nerd Font dependency. → [usage](docs/usage.md#the-tree)
 
