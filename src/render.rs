@@ -7,7 +7,8 @@
 
 use crate::view_policy::ViewMode;
 use ansi_to_tui::IntoText;
-use ratatui::text::Text;
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span, Text};
 use std::fs::File;
 use std::io::{ErrorKind, Read, Write};
 use std::path::Path;
@@ -272,14 +273,16 @@ pub fn render(
     // they differ only in the diff git produced (default vs. whole-file context) and the
     // delegate used (the full-context one numbers lines).
     if mode == ViewMode::Diff || mode == ViewMode::FullDiff {
-        let cmd = if mode == ViewMode::FullDiff {
-            &renderers.full_diff
-        } else {
-            &renderers.diff
-        };
         let (diff, notice) = cap_preview(raw_diff.unwrap_or(""), caps);
+        if mode == ViewMode::Diff {
+            // Keep the normal review view deterministic across Windows/ConPTY and Unix terminals.
+            // Delta's ANSI output can vary by terminal capabilities and has historically produced
+            // malformed-looking rows after PTY capture. The compact diff needs only unified-diff
+            // semantics, so style the trusted git text directly in ratatui instead.
+            return (render_native_diff(&diff), notice);
+        }
         return delegate(
-            &with_name(cmd, name),
+            &with_name(&renderers.full_diff, name),
             &diff,
             mode,
             renderers.timeout,
@@ -312,6 +315,38 @@ pub fn render(
         ),
         ViewMode::Diff | ViewMode::FullDiff => unreachable!("handled above"),
     }
+}
+
+/// Render unified-diff text without an ANSI subprocess. This is intentionally conservative:
+/// additions/deletions get semantic colors, hunk headers are cyan, and file metadata is dimmed.
+/// The raw text is terminal-neutralized before styling, so hostile file names cannot inject
+/// control sequences while the leading +/- markers remain visible even without color.
+fn render_native_diff(raw: &str) -> Text<'static> {
+    let safe = neutralize_terminal_control(raw, ControlMode::Plain);
+    let lines = safe
+        .lines()
+        .map(|line| {
+            let style = if line.starts_with("+++") || line.starts_with("---") {
+                Style::new().add_modifier(Modifier::BOLD)
+            } else if line.starts_with('+') {
+                Style::new().fg(Color::Green)
+            } else if line.starts_with('-') {
+                Style::new().fg(Color::Red)
+            } else if line.starts_with("@@") {
+                Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+            } else if line.starts_with("diff --git")
+                || line.starts_with("index ")
+                || line.starts_with("new file mode ")
+                || line.starts_with("deleted file mode ")
+            {
+                Style::new().add_modifier(Modifier::DIM)
+            } else {
+                Style::new()
+            };
+            Line::from(Span::styled(line.to_owned(), style))
+        })
+        .collect::<Vec<_>>();
+    Text::from(lines)
 }
 
 /// Return a bounded, escape-neutralized raw diff without invoking an external renderer. This is
