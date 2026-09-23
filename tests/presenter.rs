@@ -12,6 +12,7 @@ use herdr_file_viewer::presenter::{
 use herdr_file_viewer::render::to_text;
 use herdr_file_viewer::search::Match;
 use herdr_file_viewer::tree::{Node, NodeKind};
+use herdr_file_viewer::view_policy::ViewMode;
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use std::path::PathBuf;
@@ -1212,6 +1213,52 @@ fn explorer_tree_uses_weight_to_distinguish_directories_and_git_status() {
             .contains(Modifier::BOLD),
         "ordinary files keep normal weight"
     );
+}
+
+#[test]
+fn active_preview_metadata_shows_relative_path_and_mode_without_changing_default_fixtures() {
+    let mut state = sample_state();
+    state.active.notices.clear();
+    state.active.display_path = Some("src/main.rs".into());
+    state.active.view_mode = Some(ViewMode::SyntaxContent);
+    state.annotation_count = 2;
+
+    let out = render(&state, 100, 12);
+    assert!(
+        out.contains("src/main.rs"),
+        "repo-relative path replaces the basename-only content title\n{out}"
+    );
+    assert!(
+        out.contains("[CODE] · annotations: 2"),
+        "mode and annotation chips share the bottom-left border\n{out}"
+    );
+    assert!(
+        out.contains("? help"),
+        "the persistent help chip remains visible on the right\n{out}"
+    );
+
+    state.active.display_path = Some("docs/README.md".into());
+    state.active.view_mode = Some(ViewMode::RenderedMarkdown);
+    state.annotation_count = 0;
+    let markdown = render(&state, 100, 12);
+    assert!(markdown.contains("docs/README.md"), "{markdown}");
+    assert!(markdown.contains("[MD]"), "{markdown}");
+}
+
+#[test]
+fn every_view_mode_has_a_distinct_content_chip() {
+    for (mode, chip) in [
+        (ViewMode::RenderedMarkdown, "[MD]"),
+        (ViewMode::Diff, "[DIFF]"),
+        (ViewMode::FullDiff, "[DIFF+]"),
+        (ViewMode::SyntaxContent, "[CODE]"),
+    ] {
+        let mut state = sample_state();
+        state.active.notices.clear();
+        state.active.view_mode = Some(mode);
+        let out = render(&state, 100, 10);
+        assert!(out.contains(chip), "{mode:?} should render {chip}\n{out}");
+    }
 }
 
 #[test]
