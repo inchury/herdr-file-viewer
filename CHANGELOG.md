@@ -15,6 +15,7 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 - Explorer tree hierarchy is easier to scan: directories and Git status markers use bold weight while ordinary files remain normal-weight, with no Nerd Font dependency. → [usage](docs/usage.md#the-tree)
+- The content pane now identifies both **where** and **how** a file is being viewed: its top border uses the repo-relative path and its bottom border shows `[MD]`, `[DIFF]`, `[DIFF+]`, or `[CODE]`. → [usage](docs/usage.md#viewing-a-file)
 
 ## [1.17.0] - 2026-09-16
 
