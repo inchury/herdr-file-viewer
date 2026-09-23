@@ -10,6 +10,9 @@ All notable changes to this project are documented here. The format is based on
 ### Fixed
 - Native Windows targeted opens now work through the shipped PowerShell split/tab launchers: `-OpenTarget path[:line]` is forwarded to a fresh viewer pane instead of requiring WSL or silently focusing an existing viewer that cannot consume the target. → [Windows](docs/windows.md) · [usage](docs/usage.md#open-at-a-known-file)
 
+### Changed
+- Explorer tree hierarchy is easier to scan: directories and Git status markers use bold weight while ordinary files remain normal-weight, with no Nerd Font dependency. → [usage](docs/usage.md#the-tree)
+
 ## [1.17.0] - 2026-09-16
 
 ### Added

@@ -505,19 +505,35 @@ fn tree_row(node: &Node, selected: bool, annotated: bool) -> Line<'static> {
     if selected {
         row_style = row_style.add_modifier(Modifier::REVERSED);
     }
+
+    // Keep the row geometry byte-for-byte stable while adding an Explorer-like visual hierarchy:
+    // status markers are weight cues, directories are visually stronger than files, and neither
+    // choice requires a Nerd Font (important for stock Windows Terminal installs).
+    let status = status_marker(node);
+    let status_style = if status == ' ' {
+        row_style
+    } else {
+        row_style.add_modifier(Modifier::BOLD)
+    };
     let prefix = format!(
-        "{}{}{}{}",
-        status_marker(node),
+        "{}{}{}",
         if annotated { '@' } else { ' ' },
         "  ".repeat(node.depth),
         glyph,
     );
-    let name_style = if annotated && !selected {
+    let mut name_style = if annotated && !selected {
         row_style.patch(ANNOTATION_STYLE)
     } else {
         row_style
     };
-    let mut spans = vec![Span::styled(prefix, row_style)];
+    if node.kind == NodeKind::Dir {
+        name_style = name_style.add_modifier(Modifier::BOLD);
+    }
+
+    let mut spans = vec![
+        Span::styled(status.to_string(), status_style),
+        Span::styled(prefix, row_style),
+    ];
     let name = sanitize_control(&node_name(node));
     // A compacted chain row (`src/main/java`) folds away the indentation that used to signal depth,
     // so the row needs its own anchor: draw the leading segments DIM and the last one at full

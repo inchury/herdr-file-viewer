@@ -1158,6 +1158,63 @@ fn tree_rows_are_colored_by_git_status() {
 }
 
 #[test]
+fn explorer_tree_uses_weight_to_distinguish_directories_and_git_status() {
+    use ratatui::style::Modifier;
+
+    let mut state = sample_state();
+    state.active.notices.clear();
+    state.nodes = vec![
+        Node {
+            path: PathBuf::from("/r/src"),
+            kind: NodeKind::Dir,
+            depth: 0,
+            expanded: true,
+            status: None,
+            dir_dirty: false,
+            label: None,
+        },
+        node(
+            "/r/src/mod.rs",
+            NodeKind::File,
+            1,
+            false,
+            Some(Status::Modified),
+        ),
+        node("/r/clean.txt", NodeKind::File, 0, false, None),
+    ];
+    state.selected = 2;
+    let buf = render_buffer(&state, 80, 10);
+
+    let (dir_x, dir_y) = find_cell(&buf, "src");
+    assert!(
+        buf.cell((dir_x, dir_y))
+            .unwrap()
+            .modifier
+            .contains(Modifier::BOLD),
+        "directory names are bold so folders remain visually distinct without font-specific icons"
+    );
+
+    let (mod_x, mod_y) = find_cell(&buf, "mod.rs");
+    let marker_cell = (0..mod_x)
+        .filter_map(|x| buf.cell((x, mod_y)))
+        .find(|cell| cell.symbol() == "M")
+        .expect("modified row has an M marker");
+    assert!(
+        marker_cell.modifier.contains(Modifier::BOLD),
+        "git status marker is bold independently of the filename"
+    );
+
+    let (clean_x, clean_y) = find_cell(&buf, "clean.txt");
+    assert!(
+        !buf.cell((clean_x, clean_y))
+            .unwrap()
+            .modifier
+            .contains(Modifier::BOLD),
+        "ordinary files keep normal weight"
+    );
+}
+
+#[test]
 fn content_pane_applies_the_horizontal_scroll_offset() {
     // With content_hscroll = N (and no wrap), the leftmost N columns are scrolled off, so a
     // long line shows from column N onward.
