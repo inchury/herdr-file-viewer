@@ -1246,6 +1246,25 @@ fn active_preview_metadata_shows_relative_path_and_mode_without_changing_default
 }
 
 #[test]
+fn active_preview_path_uses_middle_ellipsis_when_the_repo_relative_path_is_long() {
+    let mut state = sample_state();
+    state.active.notices.clear();
+    state.active.display_path = Some(format!(
+        "src/{}/VeryLongName.rs",
+        "deep-segment/".repeat(8)
+    ));
+    state.active.view_mode = Some(ViewMode::SyntaxContent);
+
+    let out = render(&state, 70, 10);
+    assert!(out.contains('…'), "long path is truncated\n{out}");
+    assert!(out.contains("src/"), "leading path context survives\n{out}");
+    assert!(
+        out.contains("VeryLongName.rs"),
+        "filename survives middle truncation\n{out}"
+    );
+}
+
+#[test]
 fn every_view_mode_has_a_distinct_content_chip() {
     for (mode, chip) in [
         (ViewMode::RenderedMarkdown, "[MD]"),
