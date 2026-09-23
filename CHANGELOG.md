@@ -14,7 +14,7 @@ All notable changes to this project are documented here. The format is based on
 - Native Windows now ships `scripts/install-renderers.ps1`, a best-effort WinGet installer for `glow`, `delta`, and `bat` with Cargo fallback for the Rust renderers. → [renderers](docs/renderers.md) · [Windows](docs/windows.md)
 
 ### Changed
-- Explorer tree hierarchy is easier to scan: directories and Git status markers use bold weight while ordinary files remain normal-weight, with no Nerd Font dependency. → [usage](docs/usage.md#the-tree)
+- Explorer tree hierarchy is easier to scan: directories and Git status markers use bold weight, ordinary files remain normal-weight, and final file extensions are dimmed as a lightweight type cue — all with no Nerd Font dependency. → [usage](docs/usage.md#the-tree)
 - The content pane now identifies both **where** and **how** a file is being viewed: its top border uses the repo-relative path and its bottom border shows `[MD]`, `[DIFF]`, `[DIFF+]`, or `[CODE]`. → [usage](docs/usage.md#viewing-a-file)
 
 ## [1.17.0] - 2026-09-16
