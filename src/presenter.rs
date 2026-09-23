@@ -542,21 +542,38 @@ fn tree_row(node: &Node, selected: bool, annotated: bool) -> Line<'static> {
         Span::styled(prefix, row_style),
     ];
     let name = sanitize_control(&node_name(node));
-    // A compacted chain row (`src/main/java`) folds away the indentation that used to signal depth,
-    // so the row needs its own anchor: draw the leading segments DIM and the last one at full
-    // weight. The eye then lands on the directory the row actually leads into, with the path it
-    // came through as context. Only a labelled row splits — an ordinary name has no separator to
-    // split on, and its `label` is `None`, so every other row keeps exactly one span.
-    match node.label.is_some().then(|| name.rfind('/')).flatten() {
-        Some(cut) => {
-            let (head, tail) = name.split_at(cut + 1);
-            spans.push(Span::styled(
-                head.to_string(),
-                name_style.add_modifier(Modifier::DIM),
-            ));
-            spans.push(Span::styled(tail.to_string(), name_style));
+    if node.kind == NodeKind::File {
+        // Keep the exact filename text/width while making its type easier to scan: only the final
+        // extension (including the dot) is DIM. Hidden files such as `.env` are left whole rather
+        // than turning the entire name into an "extension". Git foreground colors and selection
+        // modifiers stay on both spans.
+        match name.rfind('.').filter(|&cut| cut > 0 && cut + 1 < name.len()) {
+            Some(cut) => {
+                let (stem, extension) = name.split_at(cut);
+                spans.push(Span::styled(stem.to_string(), name_style));
+                spans.push(Span::styled(
+                    extension.to_string(),
+                    name_style.add_modifier(Modifier::DIM),
+                ));
+            }
+            None => spans.push(Span::styled(name, name_style)),
         }
-        None => spans.push(Span::styled(name, name_style)),
+    } else {
+        // A compacted chain row (`src/main/java`) folds away the indentation that used to signal
+        // depth, so the row needs its own anchor: draw the leading segments DIM and the last one at
+        // full weight. The eye then lands on the directory the row actually leads into, with the
+        // path it came through as context.
+        match node.label.is_some().then(|| name.rfind('/')).flatten() {
+            Some(cut) => {
+                let (head, tail) = name.split_at(cut + 1);
+                spans.push(Span::styled(
+                    head.to_string(),
+                    name_style.add_modifier(Modifier::DIM),
+                ));
+                spans.push(Span::styled(tail.to_string(), name_style));
+            }
+            None => spans.push(Span::styled(name, name_style)),
+        }
     }
     Line::from(spans)
 }
