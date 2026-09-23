@@ -1213,6 +1213,20 @@ fn explorer_tree_uses_weight_to_distinguish_directories_and_git_status() {
             .contains(Modifier::BOLD),
         "ordinary files keep normal weight"
     );
+    assert!(
+        !buf.cell((clean_x, clean_y))
+            .unwrap()
+            .modifier
+            .contains(Modifier::DIM),
+        "the filename stem stays full intensity"
+    );
+    assert!(
+        buf.cell((clean_x + "clean".len() as u16, clean_y))
+            .unwrap()
+            .modifier
+            .contains(Modifier::DIM),
+        "the final extension, including its dot, is dimmed as the file-type cue"
+    );
 }
 
 #[test]
