@@ -13,6 +13,7 @@ use crate::preview::PreviewOrigin;
 use crate::preview_layout::{LayoutInput, PreviewFocus, PreviewLayout, layout};
 use crate::text_layout::{line_wrapped_rows_prefixed, sanitize_control};
 use crate::tree::{Node, NodeKind};
+use crate::view_policy::ViewMode;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -50,6 +51,10 @@ pub struct PreviewProjection {
     pub notices: Vec<String>,
     pub flash: Option<FlashLine>,
     pub title: Option<String>,
+    /// Repo-relative path of the displayed file when the controller can identify one.
+    pub display_path: Option<String>,
+    /// View mode that produced this projection, used for the compact bottom-border mode chip.
+    pub view_mode: Option<ViewMode>,
     pub rendering: bool,
     pub scroll: u16,
     pub hscroll: u16,
@@ -71,6 +76,8 @@ impl PreviewProjection {
             notices: Vec::new(),
             flash: None,
             title: Some(title.into()),
+            display_path: None,
+            view_mode: None,
             rendering: false,
             scroll: 0,
             hscroll: 0,
@@ -1122,9 +1129,11 @@ fn draw_content(
     // directory/empty selection); in that case fall back to the selected node's name (a directory)
     // or "Content" — but only when NO render is in flight, otherwise the fallback would pick up
     // the still-loading selection's name and re-introduce the title-ahead-of-body bug.
-    let applied_title = preview.title.is_some();
+    let applied_title = preview.title.is_some() || preview.display_path.is_some();
     let mut title = if let Some(origin) = &preview.origin {
         pinned_origin_title(origin, state.pinned_foreign_root.as_deref())
+    } else if let Some(path) = &preview.display_path {
+        sanitize_control(path)
     } else if let Some(name) = &preview.title {
         sanitize_control(name)
     } else if active && !preview.rendering {
@@ -1139,15 +1148,35 @@ fn draw_content(
     if active && applied_title && state.annotation_indicators.displayed_file_annotated {
         title.insert(0, '@');
     }
-    // Persistent bottom-border chips: annotation count on the left (only when nonzero and it
-    // fits), help on the right. Both ride the border rather than consuming a content row. The
-    // annotation chip deliberately names no key because ShowAnnotations is configurable.
+    // Persistent bottom-border chips: view mode + annotation count on the left (when they fit),
+    // help on the right. They ride the border rather than consuming a content row.
     let hint_text = sanitize_control(HELP_HINT);
     let hint = Line::styled(hint_text.clone(), Style::new().fg(Color::Reset)).right_aligned();
     let annotation_chip = (active && state.annotation_count > 0)
         .then(|| sanitize_control(&format!("annotations: {}", state.annotation_count)));
-    let chip_fits = annotation_chip.as_ref().is_some_and(|chip| {
-        Line::from(chip.as_str()).width() + 1 + Line::from(hint_text.as_str()).width()
+    let status_line = {
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        if let Some(mode) = preview.view_mode {
+            spans.push(Span::styled(
+                format!("[{}]", mode.chip_label()),
+                Style::new().add_modifier(Modifier::BOLD),
+            ));
+        }
+        if let Some(annotation) = annotation_chip {
+            if !spans.is_empty() {
+                spans.push(Span::raw(" · "));
+            }
+            spans.push(Span::styled(annotation, Style::new().fg(Color::Reset)));
+        }
+        (!spans.is_empty()).then(|| Line::from(spans))
+    };
+    let hint_width = if active {
+        Line::from(hint_text.as_str()).width()
+    } else {
+        0
+    };
+    let chip_fits = status_line.as_ref().is_some_and(|line| {
+        line.width() + if active { 1 } else { 0 } + hint_width
             <= area.width.saturating_sub(2) as usize
     });
     let mut block = content_block(preview).title(title);
@@ -1155,10 +1184,7 @@ fn draw_content(
         block = block.title_bottom(hint);
     }
     if chip_fits {
-        block = block.title_bottom(Line::styled(
-            annotation_chip.expect("checked as present"),
-            Style::new().fg(Color::Reset),
-        ));
+        block = block.title_bottom(status_line.expect("checked as present"));
     }
     let focused =
         (active && state.focus == Focus::Content) || (!active && state.focus == Focus::Pinned);
