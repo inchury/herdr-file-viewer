@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format is based on
 ## [Unreleased]
 
 ### Fixed
+- Changed Markdown files such as `CHANGELOG.md` and `README.md` now open in rendered `[MD]` view instead of `[DIFF]`. Diff and full-diff remain available through `v`, avoiding the slow/partial-document experience of using changed hunks as the default document view. → [usage](docs/usage.md#viewing-a-file)
 - Native Windows targeted opens now work through the shipped PowerShell split/tab launchers: `-OpenTarget path[:line]` is forwarded to a fresh viewer pane instead of requiring WSL or silently focusing an existing viewer that cannot consume the target. → [Windows](docs/windows.md) · [usage](docs/usage.md#open-at-a-known-file)
 
 ### Added
