@@ -68,7 +68,7 @@ reveal = "nautilus"
 hide_dotfiles = false       # true to hide dotfiles at startup (the `.` key still toggles)
 show_ignored = false        # true to show gitignored files at startup (the `i` key still toggles)
 compact_dirs = false        # true to draw a chain of single-child dirs as ONE row (src/main/java)
-changed_file_view = "diff"  # changed files start in "diff", or use normal "content" by file type
+changed_file_view = "diff"  # changed non-Markdown starts in diff; Markdown always opens rendered
 baseline = "base"           # force startup diff baseline: "base" or "head" (omit for context-smart default)
 update_check = true         # false disables all remote requests and their display
 confirm_discard = true      # false to discard annotations without confirming (on quit / worktree switch)
@@ -87,11 +87,11 @@ and their display. When the key is unset, `$HERDR_FILE_VIEWER_NO_UPDATE_CHECK` a
 No separate spotlight setting exists.
 The system `curl` is optional: without it, document retrieval is unavailable without an error.
 
-`changed_file_view` controls only the automatic initial view for Git-changed files. Its default,
-`"diff"`, preserves the existing diff-first policy. Set it to `"content"` to apply the same normal
-file-type policy used by unchanged files: Markdown opens rendered, while source and text files open
-in syntax content. Deleted paths remain diff-first because they have no on-disk content to render.
-This does not force raw source for Markdown. The `v` cycle still includes compact and full-file diff
+`changed_file_view` controls only the automatic initial view for Git-changed **non-Markdown**
+files. Markdown is document-first regardless of this setting: an existing changed `README.md` or
+`CHANGELOG.md` opens rendered, while its diff remains available through `v`. With the default
+`"diff"`, changed source/text files still open as diffs; set `"content"` to open those in syntax
+content instead. Deleted paths remain diff-first because they have no on-disk content to render. The `v` cycle still includes compact and full-file diff
 views, and the setting does not change Git status markers, changed-only filtering, the active
 baseline, git-status mode (`d`), or `D`'s unified/side-by-side/plain diff presentation. Values are
 trimmed and case-insensitive; an unrecognized value falls back defensively to `"diff"`.
