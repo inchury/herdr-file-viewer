@@ -22,6 +22,18 @@ pub enum ViewMode {
     SyntaxContent,
 }
 
+impl ViewMode {
+    /// Compact, terminal-friendly label used by the content-pane mode chip.
+    pub fn chip_label(self) -> &'static str {
+        match self {
+            ViewMode::RenderedMarkdown => "MD",
+            ViewMode::Diff => "DIFF",
+            ViewMode::FullDiff => "DIFF+",
+            ViewMode::SyntaxContent => "CODE",
+        }
+    }
+}
+
 /// Which policy changed files use for their automatic initial view.
 ///
 /// `Content` means the normal file-type policy for paths that still exist (render Markdown,
@@ -116,6 +128,14 @@ mod tests {
             is_changed: true,
             is_deleted: true,
         }
+    }
+
+    #[test]
+    fn view_mode_chip_labels_are_short_and_distinct() {
+        assert_eq!(ViewMode::RenderedMarkdown.chip_label(), "MD");
+        assert_eq!(ViewMode::Diff.chip_label(), "DIFF");
+        assert_eq!(ViewMode::FullDiff.chip_label(), "DIFF+");
+        assert_eq!(ViewMode::SyntaxContent.chip_label(), "CODE");
     }
 
     #[test]
