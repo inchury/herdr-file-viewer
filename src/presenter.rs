@@ -1133,7 +1133,9 @@ fn draw_content(
     let mut title = if let Some(origin) = &preview.origin {
         pinned_origin_title(origin, state.pinned_foreign_root.as_deref())
     } else if let Some(path) = &preview.display_path {
-        sanitize_control(path)
+        // A repo-relative path can be much wider than the pane. Keep both the leading directory
+        // context and the filename visible rather than letting the title run into the far corner.
+        truncate_middle(&sanitize_control(path), area.width)
     } else if let Some(name) = &preview.title {
         sanitize_control(name)
     } else if active && !preview.rendering {
