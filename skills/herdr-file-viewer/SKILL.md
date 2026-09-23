@@ -73,16 +73,32 @@ there may contain the user's annotations or navigation state.
 
 ## Native Windows preview
 
-The Windows launcher can open Files, but it does not accept an open target, and `herdr plugin pane
-open` cannot start the manifest entrypoint on native Windows. For a targeted request, use WSL with
-the command above. If the binary is already on `PATH`, run
-`herdr-file-viewer.exe --open "<target>"` in a terminal you intend to devote to the viewer. Do not
-say a generic Windows Files action opened the requested location.
+On native Windows, `herdr plugin pane open` still cannot start the manifest's relative entrypoint.
+Use the shipped PowerShell launcher instead; it accepts `-OpenTarget`, opens a **fresh** Files pane,
+and forwards the target as `HERDR_FILE_VIEWER_OPEN` so an existing viewer is never focused while
+silently ignoring the requested location.
+
+Resolve the installed plugin root through herdr, strip its Windows verbatim-path prefix, then invoke
+the launcher with the target as one PowerShell argument:
+
+```powershell
+$u = New-Object System.Text.UTF8Encoding($false)
+[Console]::OutputEncoding = $u
+$OutputEncoding = $u
+$p = ((herdr plugin list --json | ConvertFrom-Json).result.plugins |
+    Where-Object { $_.plugin_id -eq 'herdr-file-viewer' }).plugin_root
+if ($p -and $p.StartsWith('\\?\')) { $p = $p.Substring(4) }
+& (Join-Path $p 'scripts\open-file-viewer.ps1') -OpenTarget 'src/app.rs:42'
+```
+
+Replace the example target with the resolved repository-relative path, line, or range. Treat it as
+data: pass it through `-OpenTarget`, never splice it into executable PowerShell source. The launcher
+roots the viewer from the focused herdr pane's cwd, just like the normal Windows Files action.
 
 Outside Herdr, if the binary is on `PATH`, run it directly:
 
-```bash
-herdr-file-viewer --open src/app.rs:42
+```powershell
+herdr-file-viewer.exe --open "src/app.rs:42"
 ```
 
 ## Conversation behavior

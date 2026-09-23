@@ -25,6 +25,7 @@ const AGENT_SKILL: &str = include_str!("../skills/herdr-file-viewer/SKILL.md");
 const OPEN_PANE_SCRIPT: &str = include_str!("../scripts/open-file-viewer.sh");
 const OPEN_PANE_PS1: &str = include_str!("../scripts/open-file-viewer.ps1");
 const OPEN_TAB_SCRIPT: &str = include_str!("../scripts/open-file-viewer-tab.sh");
+const OPEN_TAB_PS1: &str = include_str!("../scripts/open-file-viewer-tab.ps1");
 
 /// The `--cwd` drift guard (#139).
 ///
@@ -78,6 +79,38 @@ fn no_documented_launch_passes_cwd_to_plugin_pane_open() {
     assert!(
         AGENT_SKILL.contains("plugin pane open") && USAGE_DOC.contains("plugin pane open"),
         "the agent skill and usage doc must still document the launch command"
+    );
+}
+
+
+/// Native-Windows open targets must travel through the shipped launchers rather than relying on
+/// `plugin pane open`, whose relative manifest command is not spawnable there. A targeted launch
+/// must also bypass the idempotent focus/toggle path so the requested location is not ignored by an
+/// already-running viewer.
+#[test]
+fn windows_launchers_forward_open_target_to_a_fresh_viewer() {
+    for (name, script, open_fn) in [
+        ("scripts/open-file-viewer.ps1", OPEN_PANE_PS1, "Open-Pane"),
+        ("scripts/open-file-viewer-tab.ps1", OPEN_TAB_PS1, "Open-Tab"),
+    ] {
+        assert!(
+            script.contains("[string]$OpenTarget"),
+            "{name} must accept a -OpenTarget parameter"
+        );
+        assert!(
+            script.contains("HERDR_FILE_VIEWER_OPEN=$OpenTarget"),
+            "{name} must forward the target through the viewer's startup environment"
+        );
+        assert!(
+            script.contains(&format!("if ($OpenTarget) {{ {open_fn} }}")),
+            "{name} must open a fresh viewer for a targeted request instead of focusing/toggling \
+             an existing Files pane"
+        );
+    }
+
+    assert!(
+        AGENT_SKILL.contains("-OpenTarget") && USAGE_DOC.contains("-OpenTarget"),
+        "the agent skill and usage guide must teach the native-Windows targeted launcher"
     );
 }
 

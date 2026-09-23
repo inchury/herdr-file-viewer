@@ -133,10 +133,13 @@ split a focused pane with `--cwd "$repo"` first, launch, then close that helper 
 at launch. Do not add `--cwd` to the launch itself: herdr resolves the pane's relative command against
 it, so it fails outside a built plugin checkout and silently runs that checkout's binary inside one.
 
-The Herdr pane command applies to Linux, macOS, and WSL. On native Windows preview, the Files action
-cannot accept an open target, so use WSL for this flow or, if the binary is on `PATH`, run
-`herdr-file-viewer.exe --open "<target>"` in a terminal devoted to the viewer. Outside herdr, with
-the binary on `PATH`: `herdr-file-viewer --open <path>[:line]`.
+The Herdr pane command applies to Linux, macOS, and WSL. On native Windows preview,
+`herdr plugin pane open` cannot spawn the relative manifest entrypoint, so use the shipped
+`scripts/open-file-viewer.ps1 -OpenTarget "<path>[:line]"` launcher instead. Resolve that script
+from the installed plugin root (`herdr plugin list --json`) rather than assuming the current
+directory. A targeted Windows launch always opens a fresh Files pane so an existing viewer cannot
+silently swallow the requested location. Outside herdr, with the binary on `PATH`:
+`herdr-file-viewer.exe --open "<path>[:line]"`.
 ````
 
 Without that (or an equivalent skill), a vague “open it in the file viewer” is only a wish: the
