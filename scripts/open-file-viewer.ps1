@@ -22,6 +22,11 @@
 # unit-tested (src/launch.rs) and the pane id it returns is validated flag-safe. Any failure
 # degrades to OPEN. herdr has no focus-by-id, so a focus is a `zoom <id> --on/--off` cycle.
 
+param(
+    [Parameter(Mandatory = $false)]
+    [string]$OpenTarget = $env:HERDR_FILE_VIEWER_OPEN
+)
+
 $ErrorActionPreference = 'Continue'
 
 # PowerShell 5.1 otherwise decodes herdr's UTF-8 JSON with the legacy console code page;
@@ -94,6 +99,7 @@ function Open-Pane {
     $cfg = Get-ConfigDir
     $splitArgs = @('pane', 'split', '--direction', (Get-OpenDirection $cfg), '--cwd', $cwd, '--focus')
     if ($cfg) { $splitArgs += @('--env', "HERDR_PLUGIN_CONFIG_DIR=$cfg") }
+    if ($OpenTarget) { $splitArgs += @('--env', "HERDR_FILE_VIEWER_OPEN=$OpenTarget") }
     $out = (& $HerdrBin @splitArgs | Out-String)
     $np = Get-PaneId $out
     if ($np) {
@@ -108,6 +114,10 @@ function Open-Pane {
     }
     exit 0
 }
+
+# A launch open-target applies only when a new viewer starts. Never focus/close an existing
+# Files pane for a targeted request, because that would silently ignore the requested location.
+if ($OpenTarget) { Open-Pane }
 
 $Decision = 'OPEN'
 if (Test-Path $ViewerBin) {

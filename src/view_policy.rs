@@ -1,7 +1,7 @@
 //! View Policy — a pure decision: which content-pane view mode a file gets.
 //!
-//! Precedence (design.md): deleted → diff; other changed files → the configured preference
-//! (diff by default, or the normal file-type view); else markdown → rendered (AC-8); else →
+//! Precedence (design.md): deleted → diff; markdown → rendered; other changed files → the
+//! configured preference (diff by default, or content); else →
 //! syntax-highlighted content (AC-10). The applicable set (AC-11) is what a mode-cycle key steps
 //! through; for a changed file it also offers a full-context diff (the whole file with line numbers
 //! and the diff shown inline). No I/O.
@@ -20,6 +20,18 @@ pub enum ViewMode {
     FullDiff,
     /// Syntax-highlighted file content.
     SyntaxContent,
+}
+
+impl ViewMode {
+    /// Compact, terminal-friendly label used by the content-pane mode chip.
+    pub fn chip_label(self) -> &'static str {
+        match self {
+            ViewMode::RenderedMarkdown => "MD",
+            ViewMode::Diff => "DIFF",
+            ViewMode::FullDiff => "DIFF+",
+            ViewMode::SyntaxContent => "CODE",
+        }
+    }
 }
 
 /// Which policy changed files use for their automatic initial view.
@@ -68,7 +80,14 @@ fn content_mode(fd: &FileDescriptor) -> ViewMode {
 
 /// The auto-selected default view mode for a file.
 pub fn default_mode(fd: &FileDescriptor, changed_file_view: ChangedFileView) -> ViewMode {
-    if fd.is_changed && (fd.is_deleted || changed_file_view == ChangedFileView::Diff) {
+    // Markdown is primarily a document: opening README/CHANGELOG should show the document, not
+    // only the changed hunks. A changed markdown file still exposes Diff/FullDiff through the
+    // normal mode cycle. Deleted paths are the one exception because there is no file to render.
+    if fd.is_deleted {
+        ViewMode::Diff
+    } else if fd.is_markdown {
+        ViewMode::RenderedMarkdown
+    } else if fd.is_changed && changed_file_view == ChangedFileView::Diff {
         ViewMode::Diff
     } else {
         content_mode(fd)
@@ -119,6 +138,14 @@ mod tests {
     }
 
     #[test]
+    fn view_mode_chip_labels_are_short_and_distinct() {
+        assert_eq!(ViewMode::RenderedMarkdown.chip_label(), "MD");
+        assert_eq!(ViewMode::Diff.chip_label(), "DIFF");
+        assert_eq!(ViewMode::FullDiff.chip_label(), "DIFF+");
+        assert_eq!(ViewMode::SyntaxContent.chip_label(), "CODE");
+    }
+
+    #[test]
     fn unchanged_markdown_defaults_to_rendered_markdown() {
         for preference in [ChangedFileView::Diff, ChangedFileView::Content] {
             assert_eq!(
@@ -129,14 +156,30 @@ mod tests {
     }
 
     #[test]
-    fn changed_file_defaults_to_diff_even_when_markdown() {
+    fn changed_markdown_defaults_to_rendered_document_while_changed_code_stays_diff_first() {
         assert_eq!(
-            default_mode(&fd("README.md", true, true), ChangedFileView::Diff),
-            ViewMode::Diff
+            default_mode(&fd("CHANGELOG.md", true, true), ChangedFileView::Diff),
+            ViewMode::RenderedMarkdown
         );
         assert_eq!(
             default_mode(&fd("main.rs", false, true), ChangedFileView::Diff),
             ViewMode::Diff
+        );
+    }
+
+    #[test]
+    fn changed_markdown_cycles_from_document_to_diff_views() {
+        assert_eq!(
+            applicable_modes(
+                &fd("CHANGELOG.md", true, true),
+                ChangedFileView::Diff
+            ),
+            vec![
+                ViewMode::RenderedMarkdown,
+                ViewMode::Diff,
+                ViewMode::FullDiff,
+                ViewMode::SyntaxContent,
+            ]
         );
     }
 
@@ -185,14 +228,14 @@ mod tests {
             modes,
             vec![ViewMode::Diff, ViewMode::FullDiff, ViewMode::SyntaxContent]
         );
-        // For a changed markdown file the rendered view sits after the two diff views.
+        // Markdown is document-first, but both Git review modes remain immediately reachable.
         let md = applicable_modes(&fd("README.md", true, true), ChangedFileView::Diff);
         assert_eq!(
             md,
             vec![
+                ViewMode::RenderedMarkdown,
                 ViewMode::Diff,
                 ViewMode::FullDiff,
-                ViewMode::RenderedMarkdown,
                 ViewMode::SyntaxContent
             ]
         );

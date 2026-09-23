@@ -1966,6 +1966,13 @@ impl Controller {
                     dim: f.dim,
                 }),
                 title: self.active_display.title(),
+                display_path: self.active_display.displayed_origin().map(|origin| {
+                    origin.root_relative_path().to_string_lossy().into_owned()
+                }),
+                view_mode: self
+                    .active_display
+                    .presentation()
+                    .map(PreviewPresentation::view_mode),
                 rendering: self.active_display.is_loading(),
                 scroll: self.active_interaction.vertical_scroll,
                 hscroll: self.active_interaction.horizontal_scroll,
