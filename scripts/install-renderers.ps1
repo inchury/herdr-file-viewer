@@ -13,9 +13,12 @@ function Have([string]$CommandName) {
 }
 
 function Refresh-ProcessPath {
+    $current = $env:Path
     $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $user = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $parts = @($machine, $user) | Where-Object { $_ }
+    # Keep process-local additions (custom shells/toolchains) while picking up PATH changes made by
+    # WinGet. Duplicates are harmless and preferable to dropping a caller-specific directory.
+    $parts = @($current, $machine, $user) | Where-Object { $_ }
     if ($parts.Count -gt 0) {
         $env:Path = ($parts -join ';')
     }

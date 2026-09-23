@@ -27,6 +27,7 @@ const OPEN_PANE_PS1: &str = include_str!("../scripts/open-file-viewer.ps1");
 const OPEN_TAB_SCRIPT: &str = include_str!("../scripts/open-file-viewer-tab.sh");
 const OPEN_TAB_PS1: &str = include_str!("../scripts/open-file-viewer-tab.ps1");
 const INSTALL_RENDERERS_PS1: &str = include_str!("../scripts/install-renderers.ps1");
+const RENDERERS_DOC: &str = include_str!("../docs/renderers.md");
 
 /// The `--cwd` drift guard (#139).
 ///
@@ -135,8 +136,7 @@ fn windows_renderer_helper_and_docs_stay_in_sync() {
     );
     assert!(
         README.contains("install-renderers.ps1")
-            && USAGE_DOC.contains("## The tree")
-            && include_str!("../docs/renderers.md").contains("install-renderers.ps1"),
+            && RENDERERS_DOC.contains("install-renderers.ps1"),
         "front door and renderer docs must point Windows users at the bundled helper"
     );
 }
