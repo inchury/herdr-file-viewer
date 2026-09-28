@@ -7,6 +7,7 @@
 
 use crate::view_policy::ViewMode;
 use ansi_to_tui::IntoText;
+use pulldown_cmark::{Event as MdEvent, Options as MdOptions, Parser as MdParser, Tag as MdTag, TagEnd as MdTagEnd};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use std::fs::File;
@@ -311,64 +312,171 @@ pub fn render(
     }
 }
 
-/// Render common Markdown structure directly into ratatui; file preview never needs Glow.
+/// Parse CommonMark/GFM Markdown and map its semantic event stream to Ratatui.
 fn render_native_markdown(raw: &str) -> Text<'static> {
     let safe = neutralize_terminal_control(raw, ControlMode::Plain);
-    let mut in_code = false;
-    let mut lines = Vec::new();
-    for raw_line in safe.lines() {
-        let trimmed = raw_line.trim_start();
-        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
-            in_code = !in_code;
-            let language = trimmed[3..].trim();
-            if !language.is_empty() {
-                lines.push(Line::from(Span::styled(format!("  {language}"), Style::new().fg(Color::DarkGray).add_modifier(Modifier::ITALIC))));
-            }
-            continue;
-        }
-        if in_code {
-            lines.push(Line::from(Span::styled(format!("  {raw_line}"), Style::new().fg(Color::Cyan))));
-            continue;
-        }
-        let marks = trimmed.chars().take_while(|&ch| ch == '#').count();
-        if (1..=6).contains(&marks) && trimmed.as_bytes().get(marks) == Some(&b' ') {
-            let title = trimmed[marks + 1..].trim();
-            let style = if marks <= 2 { Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD) } else { Style::new().add_modifier(Modifier::BOLD) };
-            lines.push(Line::from(Span::styled(title.to_owned(), style)));
-            continue;
-        }
-        if let Some(quote) = trimmed.strip_prefix("> ") {
-            lines.push(Line::from(vec![Span::styled("│ ", Style::new().fg(Color::DarkGray)), Span::styled(quote.to_owned(), Style::new().add_modifier(Modifier::ITALIC))]));
-            continue;
-        }
-        if is_markdown_rule(trimmed) {
-            lines.push(Line::from(Span::styled("─".repeat(32), Style::new().fg(Color::DarkGray))));
-            continue;
-        }
-        if is_table_separator(trimmed) {
-            lines.push(Line::from(Span::styled(raw_line.to_owned(), Style::new().fg(Color::DarkGray).add_modifier(Modifier::DIM))));
-            continue;
-        }
-        if let Some(item) = trimmed.strip_prefix("- ").or_else(|| trimmed.strip_prefix("* ")) {
-            let indent = " ".repeat(raw_line.len().saturating_sub(trimmed.len()));
-            let (bullet, body) = if let Some(body) = item.strip_prefix("[ ] ") { ("☐", body) } else if let Some(body) = item.strip_prefix("[x] ").or_else(|| item.strip_prefix("[X] ")) { ("☑", body) } else { ("•", item) };
-            lines.push(Line::from(vec![Span::raw(indent), Span::styled(format!("{bullet} "), Style::new().fg(Color::Cyan)), Span::raw(body.to_owned())]));
-            continue;
-        }
-        lines.push(Line::from(raw_line.to_owned()));
+    let mut options = MdOptions::empty();
+    options.insert(MdOptions::ENABLE_TABLES);
+    options.insert(MdOptions::ENABLE_STRIKETHROUGH);
+    options.insert(MdOptions::ENABLE_TASKLISTS);
+    options.insert(MdOptions::ENABLE_GFM);
+    let mut out = MarkdownWriter::default();
+    for event in MdParser::new_ext(&safe, options) { out.event(event); }
+    out.finish()
+}
+
+#[derive(Default)]
+struct MarkdownWriter {
+    lines: Vec<Line<'static>>,
+    current: Vec<Span<'static>>,
+    styles: Vec<Style>,
+    list_stack: Vec<Option<u64>>,
+    quote_depth: usize,
+    table: Option<MarkdownTable>,
+}
+
+#[derive(Default)]
+struct MarkdownTable {
+    rows: Vec<Vec<Vec<Span<'static>>>>,
+    row: Vec<Vec<Span<'static>>,
+    cell: Vec<Span<'static>>,
+    in_head: bool,
+    header_rows: usize,
+}
+
+impl MarkdownWriter {
+    fn style(&self) -> Style {
+        self.styles.iter().copied().fold(Style::new(), |base, next| base.patch(next))
     }
-    Text::from(lines)
+    fn push_text(&mut self, text: impl Into<String>, extra: Style) {
+        let span = Span::styled(text.into(), self.style().patch(extra));
+        if let Some(table) = self.table.as_mut() { table.cell.push(span); } else { self.current.push(span); }
+    }
+    fn prefix_block(&mut self) {
+        if self.current.is_empty() && self.table.is_none() && self.quote_depth > 0 {
+            self.current.push(Span::styled("│ ".repeat(self.quote_depth), Style::new().fg(Color::DarkGray)));
+        }
+    }
+    fn flush_line(&mut self) {
+        if self.table.is_none() { self.lines.push(Line::from(std::mem::take(&mut self.current))); }
+    }
+    fn blank_line(&mut self) {
+        if self.table.is_none() && self.lines.last().is_some_and(|line| !line.spans.is_empty()) { self.lines.push(Line::default()); }
+    }
+    fn event(&mut self, event: MdEvent<'_>) {
+        match event {
+            MdEvent::Start(tag) => self.start(tag),
+            MdEvent::End(tag) => self.end(tag),
+            MdEvent::Text(text) => { self.prefix_block(); self.push_text(text.into_string(), Style::new()); }
+            MdEvent::Code(code) => { self.prefix_block(); self.push_text(format!(" {} ", code), Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)); }
+            MdEvent::SoftBreak => self.push_text(" ", Style::new()),
+            MdEvent::HardBreak => self.flush_line(),
+            MdEvent::Rule => { self.flush_line(); self.lines.push(Line::from(Span::styled("─".repeat(40), Style::new().fg(Color::DarkGray)))); }
+            MdEvent::TaskListMarker(checked) => self.push_text(if checked { "☑ " } else { "☐ " }, Style::new().fg(Color::Cyan)),
+            MdEvent::FootnoteReference(label) => self.push_text(format!("[${label}]"), Style::new().fg(Color::Cyan)),
+            MdEvent::InlineMath(math) => self.push_text(format!("${math}$"), Style::new().fg(Color::Cyan)),
+            MdEvent::DisplayMath(math) => { self.flush_line(); self.lines.push(Line::from(Span::styled(math.into_string(), Style::new().fg(Color::Cyan)))); }
+            MdEvent::Html(html) | MdEvent::InlineHtml(html) => self.push_text(html.into_string(), Style::new().fg(Color::DarkGray)),
+        }
+    }
+    fn start(&mut self, tag: MdTag<'_>) {
+        match tag {
+            MdTag::Heading { level, .. } => {
+                self.blank_line();
+                let style = match level {
+                    pulldown_cmark::HeadingLevel::H1 | pulldown_cmark::HeadingLevel::H2 => Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                    _ => Style::new().add_modifier(Modifier::BOLD),
+                };
+                self.styles.push(style);
+            }
+            MdTag::Strong => self.styles.push(Style::new().add_modifier(Modifier::BOLD)),
+            MdTag::Emphasis => self.styles.push(Style::new().add_modifier(Modifier::ITALIC)),
+            MdTag::Strikethrough => self.styles.push(Style::new().add_modifier(Modifier::CROSSED_OUT)),
+            MdTag::Link { .. } => self.styles.push(Style::new().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED)),
+            MdTag::BlockQuote(_) => { self.quote_depth += 1; self.prefix_block(); }
+            MdTag::CodeBlock(_) => { self.flush_line(); self.styles.push(Style::new().fg(Color::Cyan)); }
+            MdTag::List(start) => self.list_stack.push(start),
+            MdTag::Item => {
+                self.prefix_block();
+                let depth = self.list_stack.len().saturating_sub(1);
+                self.current.push(Span::raw("  ".repeat(depth)));
+                let marker = match self.list_stack.last_mut() {
+                    Some(Some(n)) => { let marker = format!("${n}. "); *n += 1; marker }
+                    _ => "• ".to_string(),
+                };
+                self.current.push(Span::styled(marker, Style::new().fg(Color::Cyan)));
+            }
+            MdTag::Table(_) => self.table = Some(MarkdownTable::default()),
+            MdTag::TableHead => { if let Some(table) = self.table.as_mut() { table.in_head = true; } }
+            MdTag::Image { dest_url, .. } => {
+                self.push_text("image: ", Style::new().fg(Color::DarkGray));
+                self.push_text(dest_url.into_string(), Style::new().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED));
+            }
+            _ => {}
+        }
+    }
+    fn end(&mut self, tag: MdTagEnd) {
+        match tag {
+            MdTagEnd::Paragraph => { self.flush_line(); self.blank_line(); }
+            MdTagEnd::Heading(_) => { self.styles.pop(); self.flush_line(); self.blank_line(); }
+            MdTagEnd::Strong | MdTagEnd::Emphasis | MdTagEnd::Strikethrough | MdTagEnd::Link => { self.styles.pop(); }
+            MdTagEnd::BlockQuote(_) => { self.flush_line(); self.quote_depth = self.quote_depth.saturating_sub(1); }
+            MdTagEnd::CodeBlock => { self.styles.pop(); self.flush_line(); self.blank_line(); }
+            MdTagEnd::List(_) => { self.list_stack.pop(); }
+            MdTagEnd::Item => self.flush_line(),
+            MdTagEnd::TableCell => { if let Some(table) = self.table.as_mut() { table.row.push(std::mem::take(&mut table.cell)); } }
+            MdTagEnd::TableRow => {
+                if let Some(table) = self.table.as_mut() {
+                    table.rows.push(std::mem::take(&mut table.row));
+                    if table.in_head { table.header_rows = table.rows.len(); }
+                }
+            }
+            MdTagEnd::TableHead => { if let Some(table) = self.table.as_mut() { table.in_head = false; } }
+            MdTagEnd::Table => {
+                if let Some(table) = self.table.take() { self.render_table(table); self.blank_line(); }
+            }
+            _ => {}
+        }
+    }
+    fn render_table(&mut self, table: MarkdownTable) {
+        let cols = table.rows.iter().map(Vec::len).max().unwrap_or(0);
+        if cols == 0 { return; }
+        let mut widths = vec![1usize; cols];
+        for row in &table.rows {
+            for (i, cell) in row.iter().enumerate() { widths[i] = widths[i].max(Line::from(cell.clone()).width()); }
+        }
+        let border = |left: char, middle: char, right: char| {
+            let mut s = String::new(); s.push(left);
+            for (i, width) in widths.iter().enumerate() {
+                if i > 0 { s.push(middle); }
+                s.push_str(&"─".repeat(*width + 2));
+            }
+            s.push(right);
+            Line::from(Span::styled(s, Style::new().fg(Color::DarkGray)))
+        };
+        self.lines.push(border('┌', '┬', '┐'));
+        for (row_index, row) in table.rows.into_iter().enumerate() {
+            let mut spans = vec![Span::styled("│ ", Style::new().fg(Color::DarkGray))];
+            for col in 0..cols {
+                if col > 0 { spans.push(Span::styled(" │ ", Style::new().fg(Color::DarkGray))); }
+                let cell = row.get(col).cloned().unwrap_or_default();
+                let used = Line::from(cell.clone()).width();
+                spans.extend(cell);
+                spans.push(Span::raw(" ".repeat(widths[col].saturating_sub(used))));
+            }
+            spans.push(Span::styled(" │", Style::new().fg(Color::DarkGray)));
+            self.lines.push(Line::from(spans));
+            if row_index + 1 == table.header_rows { self.lines.push(border('├', '┼', '┤')); }
+        }
+        self.lines.push(border('└', '┴', '┘'));
+    }
+    fn finish(mut self) -> Text<'static> {
+        if !self.current.is_empty() { self.flush_line(); }
+        while self.lines.last().is_some_and(|line| line.spans.is_empty()) { self.lines.pop(); }
+        Text::from(self.lines)
+    }
 }
 
-fn is_markdown_rule(line: &str) -> bool {
-    let compact: String = line.chars().filter(|ch| !ch.is_whitespace()).collect();
-    compact.len() >= 3 && (compact.chars().all(|ch| ch == '-') || compact.chars().all(|ch| ch == '*') || compact.chars().all(|ch| ch == '_'))
-}
-
-fn is_table_separator(line: &str) -> bool {
-    let trimmed = line.trim().trim_matches('|');
-    !trimmed.is_empty() && trimmed.split('|').all(|cell| { let cell = cell.trim().trim_matches(':'); cell.len() >= 3 && cell.chars().all(|ch| ch == '-') })
-}
 /// Render unified-diff text without an ANSI subprocess. This is intentionally conservative:
 /// additions/deletions get semantic colors, hunk headers are cyan, and file metadata is dimmed.
 /// The raw text is terminal-neutralized before styling, so hostile file names cannot inject
