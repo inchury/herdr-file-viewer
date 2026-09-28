@@ -82,10 +82,10 @@
 # toggles it. Default:
 #compact_dirs = false
 
-# Choose the automatic initial view for Git-changed files. "diff" preserves the
-# default diff-first behavior. "content" applies the normal file-type policy
-# instead: Markdown opens rendered, while source/text opens in syntax content.
-# Deleted paths stay diff-first because there is no on-disk content to render.
+# Choose the automatic initial view for Git-changed NON-MARKDOWN files.
+# Existing Markdown always opens rendered; its diff is still available with `v`.
+# "diff" keeps changed source/text diff-first; "content" opens those as syntax
+# content instead. Deleted paths stay diff-first because there is no file to render.
 # The `v` key still cycles through both diff views either way, and git status,
 # changed-file filters, baselines, and `D` diff presentation are unaffected.
 # An unrecognized value falls back to "diff". Default:

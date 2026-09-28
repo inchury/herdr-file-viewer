@@ -96,6 +96,14 @@ impl Controller {
             notices: pin.document.notices().to_vec(),
             flash: None,
             title: None,
+            display_path: Some(
+                pin.document
+                    .origin()
+                    .root_relative_path()
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+            view_mode: Some(presentation.view_mode()),
             rendering: false,
             scroll: pin.interaction.vertical_scroll,
             hscroll: pin.interaction.horizontal_scroll,

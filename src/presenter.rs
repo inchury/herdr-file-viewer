@@ -13,6 +13,7 @@ use crate::preview::PreviewOrigin;
 use crate::preview_layout::{LayoutInput, PreviewFocus, PreviewLayout, layout};
 use crate::text_layout::{line_wrapped_rows_prefixed, sanitize_control};
 use crate::tree::{Node, NodeKind};
+use crate::view_policy::ViewMode;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -50,6 +51,10 @@ pub struct PreviewProjection {
     pub notices: Vec<String>,
     pub flash: Option<FlashLine>,
     pub title: Option<String>,
+    /// Repo-relative path of the displayed file when the controller can identify one.
+    pub display_path: Option<String>,
+    /// View mode that produced this projection, used for the compact bottom-border mode chip.
+    pub view_mode: Option<ViewMode>,
     pub rendering: bool,
     pub scroll: u16,
     pub hscroll: u16,
@@ -71,6 +76,8 @@ impl PreviewProjection {
             notices: Vec::new(),
             flash: None,
             title: Some(title.into()),
+            display_path: None,
+            view_mode: None,
             rendering: false,
             scroll: 0,
             hscroll: 0,
@@ -505,35 +512,68 @@ fn tree_row(node: &Node, selected: bool, annotated: bool) -> Line<'static> {
     if selected {
         row_style = row_style.add_modifier(Modifier::REVERSED);
     }
+
+    // Keep the row geometry byte-for-byte stable while adding an Explorer-like visual hierarchy:
+    // status markers are weight cues, directories are visually stronger than files, and neither
+    // choice requires a Nerd Font (important for stock Windows Terminal installs).
+    let status = status_marker(node);
+    let status_style = if status == ' ' {
+        row_style
+    } else {
+        row_style.add_modifier(Modifier::BOLD)
+    };
     let prefix = format!(
-        "{}{}{}{}",
-        status_marker(node),
+        "{}{}{}",
         if annotated { '@' } else { ' ' },
         "  ".repeat(node.depth),
         glyph,
     );
-    let name_style = if annotated && !selected {
+    let mut name_style = if annotated && !selected {
         row_style.patch(ANNOTATION_STYLE)
     } else {
         row_style
     };
-    let mut spans = vec![Span::styled(prefix, row_style)];
+    if node.kind == NodeKind::Dir {
+        name_style = name_style.add_modifier(Modifier::BOLD);
+    }
+
+    let mut spans = vec![
+        Span::styled(status.to_string(), status_style),
+        Span::styled(prefix, row_style),
+    ];
     let name = sanitize_control(&node_name(node));
-    // A compacted chain row (`src/main/java`) folds away the indentation that used to signal depth,
-    // so the row needs its own anchor: draw the leading segments DIM and the last one at full
-    // weight. The eye then lands on the directory the row actually leads into, with the path it
-    // came through as context. Only a labelled row splits — an ordinary name has no separator to
-    // split on, and its `label` is `None`, so every other row keeps exactly one span.
-    match node.label.is_some().then(|| name.rfind('/')).flatten() {
-        Some(cut) => {
-            let (head, tail) = name.split_at(cut + 1);
-            spans.push(Span::styled(
-                head.to_string(),
-                name_style.add_modifier(Modifier::DIM),
-            ));
-            spans.push(Span::styled(tail.to_string(), name_style));
+    if node.kind == NodeKind::File {
+        // Keep the exact filename text/width while making its type easier to scan: only the final
+        // extension (including the dot) is DIM. Hidden files such as `.env` are left whole rather
+        // than turning the entire name into an "extension". Git foreground colors and selection
+        // modifiers stay on both spans.
+        match name.rfind('.').filter(|&cut| cut > 0 && cut + 1 < name.len()) {
+            Some(cut) => {
+                let (stem, extension) = name.split_at(cut);
+                spans.push(Span::styled(stem.to_string(), name_style));
+                spans.push(Span::styled(
+                    extension.to_string(),
+                    name_style.add_modifier(Modifier::DIM),
+                ));
+            }
+            None => spans.push(Span::styled(name, name_style)),
         }
-        None => spans.push(Span::styled(name, name_style)),
+    } else {
+        // A compacted chain row (`src/main/java`) folds away the indentation that used to signal
+        // depth, so the row needs its own anchor: draw the leading segments DIM and the last one at
+        // full weight. The eye then lands on the directory the row actually leads into, with the
+        // path it came through as context.
+        match node.label.is_some().then(|| name.rfind('/')).flatten() {
+            Some(cut) => {
+                let (head, tail) = name.split_at(cut + 1);
+                spans.push(Span::styled(
+                    head.to_string(),
+                    name_style.add_modifier(Modifier::DIM),
+                ));
+                spans.push(Span::styled(tail.to_string(), name_style));
+            }
+            None => spans.push(Span::styled(name, name_style)),
+        }
     }
     Line::from(spans)
 }
@@ -1106,9 +1146,13 @@ fn draw_content(
     // directory/empty selection); in that case fall back to the selected node's name (a directory)
     // or "Content" — but only when NO render is in flight, otherwise the fallback would pick up
     // the still-loading selection's name and re-introduce the title-ahead-of-body bug.
-    let applied_title = preview.title.is_some();
+    let applied_title = preview.title.is_some() || preview.display_path.is_some();
     let mut title = if let Some(origin) = &preview.origin {
         pinned_origin_title(origin, state.pinned_foreign_root.as_deref())
+    } else if let Some(path) = &preview.display_path {
+        // A repo-relative path can be much wider than the pane. Keep both the leading directory
+        // context and the filename visible rather than letting the title run into the far corner.
+        truncate_middle(&sanitize_control(path), area.width)
     } else if let Some(name) = &preview.title {
         sanitize_control(name)
     } else if active && !preview.rendering {
@@ -1123,15 +1167,35 @@ fn draw_content(
     if active && applied_title && state.annotation_indicators.displayed_file_annotated {
         title.insert(0, '@');
     }
-    // Persistent bottom-border chips: annotation count on the left (only when nonzero and it
-    // fits), help on the right. Both ride the border rather than consuming a content row. The
-    // annotation chip deliberately names no key because ShowAnnotations is configurable.
-    let hint_text = sanitize_control(HELP_HINT);
+    // Persistent bottom-border chips: view mode + annotation count on the left (when they fit),
+    // help on the right. They ride the border rather than consuming a content row.
+    let hint_text = sanitize_control(key_hint_for_width(area.width));
     let hint = Line::styled(hint_text.clone(), Style::new().fg(Color::Reset)).right_aligned();
     let annotation_chip = (active && state.annotation_count > 0)
         .then(|| sanitize_control(&format!("annotations: {}", state.annotation_count)));
-    let chip_fits = annotation_chip.as_ref().is_some_and(|chip| {
-        Line::from(chip.as_str()).width() + 1 + Line::from(hint_text.as_str()).width()
+    let status_line = {
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        if let Some(mode) = preview.view_mode {
+            spans.push(Span::styled(
+                format!("[{}]", mode.chip_label()),
+                Style::new().add_modifier(Modifier::BOLD),
+            ));
+        }
+        if let Some(annotation) = annotation_chip {
+            if !spans.is_empty() {
+                spans.push(Span::raw(" · "));
+            }
+            spans.push(Span::styled(annotation, Style::new().fg(Color::Reset)));
+        }
+        (!spans.is_empty()).then(|| Line::from(spans))
+    };
+    let hint_width = if active {
+        Line::from(hint_text.as_str()).width()
+    } else {
+        0
+    };
+    let chip_fits = status_line.as_ref().is_some_and(|line| {
+        line.width() + if active { 1 } else { 0 } + hint_width
             <= area.width.saturating_sub(2) as usize
     });
     let mut block = content_block(preview).title(title);
@@ -1139,10 +1203,7 @@ fn draw_content(
         block = block.title_bottom(hint);
     }
     if chip_fits {
-        block = block.title_bottom(Line::styled(
-            annotation_chip.expect("checked as present"),
-            Style::new().fg(Color::Reset),
-        ));
+        block = block.title_bottom(status_line.expect("checked as present"));
     }
     let focused =
         (active && state.focus == Focus::Content) || (!active && state.focus == Focus::Pinned);
@@ -1990,7 +2051,22 @@ const HELP_TITLE: &str = "Help";
 /// right-aligned one-segment affordance that `?` opens help, visible on the default screen
 /// without opening any modal. Static (first-party), so no sanitization is needed
 /// beyond the defense-in-depth `sanitize_control` applied at the call site (AC-27).
-const HELP_HINT: &str = "? help";
+const HELP_HINT: &str = "↑↓ navigate · ←→ tree · Enter open · v view · / search · Esc close · ? help";
+const HELP_HINT_MEDIUM: &str = "↑↓ navigate · Enter open · v view · Esc close · ? help";
+const HELP_HINT_NARROW: &str = "↑↓ nav · v view · Esc close · ? help";
+
+/// Pick a discoverability footer that fits the active content border without wrapping.
+/// The full hint documents the common navigation/view/search/close path; narrower panes
+/// progressively drop secondary actions while keeping view, close, and help discoverable.
+fn key_hint_for_width(width: u16) -> &'static str {
+    let inner = width.saturating_sub(2) as usize;
+    for hint in [HELP_HINT, HELP_HINT_MEDIUM, HELP_HINT_NARROW, "? help"] {
+        if Line::from(hint).width() <= inner {
+            return hint;
+        }
+    }
+    ""
+}
 /// The help overlay's desired interior WIDTH (columns) before clamping to the frame. A generous
 /// fixed size (the changelog/about bodies are unbounded — the box does NOT size to content like the
 /// finder; it clamps to the frame and the body scrolls).
@@ -2853,6 +2929,20 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect, help: &HelpView) {
                 body_area.height as usize,
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod explorer_footer_tests {
+    use super::*;
+
+    #[test]
+    fn key_footer_adapts_to_available_width() {
+        assert_eq!(key_hint_for_width(120), HELP_HINT);
+        assert_eq!(key_hint_for_width(62), HELP_HINT_MEDIUM);
+        assert_eq!(key_hint_for_width(42), HELP_HINT_NARROW);
+        assert_eq!(key_hint_for_width(10), "? help");
+        assert_eq!(key_hint_for_width(5), "");
     }
 }
 

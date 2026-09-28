@@ -25,8 +25,28 @@ PowerShell launcher scripts.
   command = "herdr-file-viewer.open-file-viewer-tab-windows"
   description = "open file viewer in tab"
   ```
+- **Targeted opens are supported by the Windows launcher.** The generic action has no dynamic
+  argument slot, but the shipped launcher accepts `-OpenTarget` and forwards it safely to a fresh
+  viewer pane:
+
+  ```powershell
+  $p = ((herdr plugin list --json | ConvertFrom-Json).result.plugins |
+      Where-Object { $_.plugin_id -eq 'herdr-file-viewer' }).plugin_root
+  if ($p -and $p.StartsWith('\\?\')) { $p = $p.Substring(4) }
+  & (Join-Path $p 'scripts\open-file-viewer.ps1') -OpenTarget 'src/app.rs:42'
+  ```
+
+  `path`, `path:line`, and `path:start-end` use the same format as `--open`. A targeted
+  request deliberately opens a new Files pane instead of focusing an existing one, because launch
+  targets are applied only at viewer startup.
+
 - **Requires herdr's preview channel.** Windows herdr binaries ship only on herdr's pre-release
   update channel, so you need to be on it before installing this plugin on Windows.
+- **Optional renderers have a Windows installer helper.** From the installed plugin directory,
+  run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-renderers.ps1`.
+  It installs `glow`, `delta`, and `bat` with WinGet when available and falls back to Cargo for
+  `delta` / `bat`. Missing renderers still degrade to plain text.
+
 - **Non-ASCII paths and pane titles are supported.** The launchers force UTF-8 before parsing
   herdr's JSON under Windows PowerShell 5.1, so names outside the active legacy code page do not
   make the viewer fall back to its plugin install directory.

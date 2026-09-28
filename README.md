@@ -30,8 +30,10 @@ back into the chat. It never touches your files.
 
 ## Why you'd want it
 
-- **The right view, automatically.** A changed file opens as a diff. A README renders. Code is
-  highlighted. No `cat`, no mode switch, no commands. Press `v` only when you want something else.
+- **The right view, automatically.** Markdown opens as a rendered document preview (including changed
+  README/CHANGELOG files), changed source opens as a diff, and code is syntax-highlighted. Compact
+  diffs are colored natively (`+` green / `-` red) for stable Windows/ConPTY rendering. Press
+  `v` only when you want another available view.
 - **Git in the tree.** `M`/`A`/`D`/`?` on every row, a changed-only filter (`c`), jump next/prev
   changed file (`]`/`[`), flip the baseline between your branch and `HEAD` (`b`). Not a separate
   git client.
@@ -74,7 +76,8 @@ herdr plugin install smarzban/herdr-file-viewer
 
 # 2. (recommended) install the renderers, so markdown / diffs / code are styled, not plain text:
 brew install glow git-delta bat     # macOS, or use your package manager
-#   Linux / cross-platform: run scripts/install-renderers.sh from the plugin dir (`herdr plugin list`)
+#   Linux/macOS helper: ./scripts/install-renderers.sh
+#   Windows PowerShell: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-renderers.ps1
 ```
 
 Then **bind a key** in your herdr config (`~/.config/herdr/config.toml`) so one press summons it:

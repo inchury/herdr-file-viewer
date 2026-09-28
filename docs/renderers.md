@@ -9,14 +9,25 @@ dependencies (not Cargo dependencies) and each is **optional**:
 | Diffs | [`delta`](https://github.com/dandavison/delta) | `brew install git-delta` / `cargo install git-delta` |
 | Syntax-highlighted content | [`bat`](https://github.com/sharkdp/bat) | `brew install bat` / package manager |
 
-Or install all three at once with the bundled helper (best-effort; detects brew/apt/dnf/pacman
-and falls back to `cargo install` for `delta` and `bat`; `glow` is written in Go, so the helper
-prints its manual install link instead of attempting a cargo install), run from the plugin dir
-(`herdr plugin list` shows its path):
+Or install all three at once with the bundled helper, run from the plugin dir
+(`herdr plugin list` shows its path).
+
+Linux/macOS:
 
 ```bash
 ./scripts/install-renderers.sh
 ```
+
+Native Windows PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-renderers.ps1
+```
+
+The Unix helper detects brew/apt/dnf/pacman and falls back to `cargo install` for `delta` and
+`bat`. The Windows helper prefers WinGet (`charmbracelet.glow`, `dandavison.delta`,
+`sharkdp.bat`) and uses the same cargo fallback for `delta` / `bat`. Both are best-effort:
+`glow` has no cargo fallback, and a missing renderer never prevents the viewer from running.
 
 **If a renderer is not installed, the viewer falls back to plain text** and shows a short
 notice in the content pane naming the missing capability (e.g. *“Markdown renderer

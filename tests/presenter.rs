@@ -12,6 +12,7 @@ use herdr_file_viewer::presenter::{
 use herdr_file_viewer::render::to_text;
 use herdr_file_viewer::search::Match;
 use herdr_file_viewer::tree::{Node, NodeKind};
+use herdr_file_viewer::view_policy::ViewMode;
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use std::path::PathBuf;
@@ -1155,6 +1156,142 @@ fn tree_rows_are_colored_by_git_status() {
         Color::LightGreen,
         "a clean file is not colored green"
     );
+}
+
+#[test]
+fn explorer_tree_uses_weight_to_distinguish_directories_and_git_status() {
+    use ratatui::style::Modifier;
+
+    let mut state = sample_state();
+    state.active.notices.clear();
+    state.nodes = vec![
+        Node {
+            path: PathBuf::from("/r/src"),
+            kind: NodeKind::Dir,
+            depth: 0,
+            expanded: true,
+            status: None,
+            dir_dirty: false,
+            label: None,
+        },
+        node(
+            "/r/src/mod.rs",
+            NodeKind::File,
+            1,
+            false,
+            Some(Status::Modified),
+        ),
+        node("/r/clean.txt", NodeKind::File, 0, false, None),
+    ];
+    state.selected = 2;
+    let buf = render_buffer(&state, 80, 10);
+
+    let (dir_x, dir_y) = find_cell(&buf, "src");
+    assert!(
+        buf.cell((dir_x, dir_y))
+            .unwrap()
+            .modifier
+            .contains(Modifier::BOLD),
+        "directory names are bold so folders remain visually distinct without font-specific icons"
+    );
+
+    let (mod_x, mod_y) = find_cell(&buf, "mod.rs");
+    let marker_cell = (0..mod_x)
+        .filter_map(|x| buf.cell((x, mod_y)))
+        .find(|cell| cell.symbol() == "M")
+        .expect("modified row has an M marker");
+    assert!(
+        marker_cell.modifier.contains(Modifier::BOLD),
+        "git status marker is bold independently of the filename"
+    );
+
+    let (clean_x, clean_y) = find_cell(&buf, "clean.txt");
+    assert!(
+        !buf.cell((clean_x, clean_y))
+            .unwrap()
+            .modifier
+            .contains(Modifier::BOLD),
+        "ordinary files keep normal weight"
+    );
+    assert!(
+        !buf.cell((clean_x, clean_y))
+            .unwrap()
+            .modifier
+            .contains(Modifier::DIM),
+        "the filename stem stays full intensity"
+    );
+    assert!(
+        buf.cell((clean_x + "clean".len() as u16, clean_y))
+            .unwrap()
+            .modifier
+            .contains(Modifier::DIM),
+        "the final extension, including its dot, is dimmed as the file-type cue"
+    );
+}
+
+#[test]
+fn active_preview_metadata_shows_relative_path_and_mode_without_changing_default_fixtures() {
+    let mut state = sample_state();
+    state.active.notices.clear();
+    state.active.display_path = Some("src/main.rs".into());
+    state.active.view_mode = Some(ViewMode::SyntaxContent);
+    state.annotation_count = 2;
+
+    let out = render(&state, 100, 12);
+    assert!(
+        out.contains("src/main.rs"),
+        "repo-relative path replaces the basename-only content title\n{out}"
+    );
+    assert!(
+        out.contains("[CODE] · annotations: 2"),
+        "mode and annotation chips share the bottom-left border\n{out}"
+    );
+    assert!(
+        out.contains("? help"),
+        "the persistent help chip remains visible on the right\n{out}"
+    );
+
+    state.active.display_path = Some("docs/README.md".into());
+    state.active.view_mode = Some(ViewMode::RenderedMarkdown);
+    state.annotation_count = 0;
+    let markdown = render(&state, 100, 12);
+    assert!(markdown.contains("docs/README.md"), "{markdown}");
+    assert!(markdown.contains("[MD]"), "{markdown}");
+}
+
+#[test]
+fn active_preview_path_uses_middle_ellipsis_when_the_repo_relative_path_is_long() {
+    let mut state = sample_state();
+    state.active.notices.clear();
+    state.active.display_path = Some(format!(
+        "src/{}/VeryLongName.rs",
+        "deep-segment/".repeat(8)
+    ));
+    state.active.view_mode = Some(ViewMode::SyntaxContent);
+
+    let out = render(&state, 70, 10);
+    assert!(out.contains('…'), "long path is truncated\n{out}");
+    assert!(out.contains("src/"), "leading path context survives\n{out}");
+    assert!(
+        out.contains("VeryLongName.rs"),
+        "filename survives middle truncation\n{out}"
+    );
+}
+
+#[test]
+fn every_view_mode_has_a_distinct_content_chip() {
+    for (mode, chip) in [
+        (ViewMode::RenderedMarkdown, "[MD]"),
+        (ViewMode::Diff, "[DIFF]"),
+        (ViewMode::FullDiff, "[DIFF+]"),
+        (ViewMode::SyntaxContent, "[CODE]"),
+    ] {
+        let mut state = sample_state();
+        state.active.notices.clear();
+        state.active.view_mode = Some(mode);
+        let out = render(&state, 100, 10);
+        assert!(out.contains(chip), "{mode:?} should render {chip}\n{out}");
+    }
 }
 
 #[test]

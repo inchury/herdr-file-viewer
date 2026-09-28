@@ -187,6 +187,54 @@ fn diff_mode_renders_the_supplied_raw_diff() {
 }
 
 #[test]
+fn compact_diff_uses_native_semantic_colors() {
+    use ratatui::style::{Color, Modifier};
+
+    let prepared = Prepared::Full { text: "ignored".into() };
+    let raw = "diff --git a/a.rs b/a.rs\n--- a/a.rs\n+++ b/a.rs\n@@ -1 +1 @@\n-old\n+new";
+    let (text, notice) = render(
+        &cat(),
+        &prepared,
+        ViewMode::Diff,
+        Some(raw),
+        Some("a.rs"),
+        Caps::default(),
+    );
+    assert!(notice.is_none());
+
+    let style_for = |prefix: &str| {
+        text.lines
+            .iter()
+            .find(|line| line.spans.first().is_some_and(|s| s.content.starts_with(prefix)))
+            .and_then(|line| line.spans.first())
+            .map(|span| span.style)
+            .expect("expected diff line")
+    };
+    assert_eq!(style_for("+new").fg, Some(Color::Green));
+    assert_eq!(style_for("-old").fg, Some(Color::Red));
+    assert_eq!(style_for("@@").fg, Some(Color::Cyan));
+    assert!(style_for("@@").add_modifier.contains(Modifier::BOLD));
+}
+
+#[test]
+fn compact_diff_neutralizes_terminal_controls_without_losing_markers() {
+    let prepared = Prepared::Full { text: "ignored".into() };
+    let raw = "+safe\x1b[2Jtext\n-removed";
+    let (text, _) = render(
+        &cat(),
+        &prepared,
+        ViewMode::Diff,
+        Some(raw),
+        None,
+        Caps::default(),
+    );
+    let flat = flatten(&text);
+    assert!(!flat.contains('\x1b'));
+    assert!(flat.contains("+safetext"));
+    assert!(flat.contains("-removed"));
+}
+
+#[test]
 fn an_oversized_diff_is_truncated_with_a_notice() {
     // Cap-relative so the test can't rot when the default line cap changes.
     let cap = Caps::default().max_lines;

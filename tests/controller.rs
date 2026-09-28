@@ -671,6 +671,36 @@ fn baseline_toggle_while_status_mode_keeps_status_filter() {
 }
 
 #[test]
+fn view_state_projects_repo_relative_path_and_settled_view_mode() {
+    let dir = TempDir::new();
+    std::fs::create_dir_all(dir.path().join("src")).unwrap();
+    std::fs::write(dir.path().join("src/main.rs"), "fn main() {}\n").unwrap();
+    let (mut ctrl, _, _) = controller(dir.path(), false, StubGit::default(), false);
+
+    // The tree starts on `src`; expand it, then select the nested file so the projected path
+    // proves we are carrying more than the basename.
+    ctrl.handle(Intent::Activate);
+    ctrl.handle(Intent::NavDown);
+    await_marker(&mut ctrl, "stub-content");
+
+    let active = ctrl.view_state().active;
+    let expected = PathBuf::from("src")
+        .join("main.rs")
+        .to_string_lossy()
+        .into_owned();
+    assert_eq!(
+        active.display_path.as_deref(),
+        Some(expected.as_str()),
+        "the live projection carries the repo-relative path"
+    );
+    assert_eq!(
+        active.view_mode,
+        Some(ViewMode::SyntaxContent),
+        "the live projection carries the mode that produced the settled document"
+    );
+}
+
+#[test]
 fn cycle_view_advances_the_selected_files_mode_through_the_applicable_set() {
     // AC-11: the view-mode override steps through applicable_modes and wraps around.
     let dir = TempDir::new();

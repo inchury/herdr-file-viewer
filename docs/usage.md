@@ -30,6 +30,8 @@ setting off unless you need it; `.git/` itself always stays hidden. The tree's *
 **bottom border shows the current branch**, so you always know *where* and *on what branch* you're
 looking.
 
+Directory names use bold weight while ordinary files stay normal-weight, Git status letters / dirty-directory markers are bold on top of their existing status colors, and a file's final extension (for example `.rs`, `.md`, `.json`) is dimmed as a lightweight type cue. This keeps the tree scannable in stock Windows Terminal and other terminals without requiring Nerd Font icons.
+
 Move the cursor with `↑`/`↓` (or `k`/`j`), expand/collapse a directory with `→`/`←` (or `l`/`h`) or
 `Enter`. In the normal tree, `←` on a file or an already-collapsed directory walks to and collapses
 the nearest visible parent, so repeated presses climb the tree; it stops at a root child. This also
@@ -133,10 +135,13 @@ split a focused pane with `--cwd "$repo"` first, launch, then close that helper 
 at launch. Do not add `--cwd` to the launch itself: herdr resolves the pane's relative command against
 it, so it fails outside a built plugin checkout and silently runs that checkout's binary inside one.
 
-The Herdr pane command applies to Linux, macOS, and WSL. On native Windows preview, the Files action
-cannot accept an open target, so use WSL for this flow or, if the binary is on `PATH`, run
-`herdr-file-viewer.exe --open "<target>"` in a terminal devoted to the viewer. Outside herdr, with
-the binary on `PATH`: `herdr-file-viewer --open <path>[:line]`.
+The Herdr pane command applies to Linux, macOS, and WSL. On native Windows preview,
+`herdr plugin pane open` cannot spawn the relative manifest entrypoint, so use the shipped
+`scripts/open-file-viewer.ps1 -OpenTarget "<path>[:line]"` launcher instead. Resolve that script
+from the installed plugin root (`herdr plugin list --json`) rather than assuming the current
+directory. A targeted Windows launch always opens a fresh Files pane so an existing viewer cannot
+silently swallow the requested location. Outside herdr, with the binary on `PATH`:
+`herdr-file-viewer.exe --open "<path>[:line]"`.
 ````
 
 Without that (or an equivalent skill), a vague “open it in the file viewer” is only a wish: the
@@ -169,9 +174,15 @@ This is launch-only. It does not retarget a Files pane that is already running; 
 
 ## Viewing a file
 
-The content pane shows **the right view for each file, automatically**: by default a changed file
-shows its **diff**, a markdown file **renders**, and anything else is **syntax-highlighted** content
-with line numbers. Set [`changed_file_view = "content"`](configuration.md) if changed files should
+The content pane shows **the right view for each file, automatically**: Markdown always opens as the
+**rendered document** when the file still exists (including changed `README.md` / `CHANGELOG.md`);
+a changed non-Markdown file shows its **diff** by default, and anything else is
+**syntax-highlighted** content with line numbers. Changed Markdown still keeps `DIFF` and
+`DIFF+` in the `v` mode cycle, so Git review is one key away without replacing the normal
+document-reading experience. The top border shows the displayed file's **repo-relative path** (for example
+`src/controller/mod.rs`), while a compact bottom-border chip names the active view:
+`[MD]`, `[DIFF]`, `[DIFF+]` (full-context diff), or `[CODE]`. This makes both location and
+viewer type visible without opening help or cycling modes. Set [`changed_file_view = "content"`](configuration.md) if changed files should
 start in their normal file-type view instead (rendered Markdown or syntax content); deleted paths
 remain diff-first because no file content remains to display.
 
