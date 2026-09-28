@@ -373,7 +373,7 @@ impl MarkdownWriter {
             MdEvent::HardBreak => self.flush_line(),
             MdEvent::Rule => { self.flush_line(); self.lines.push(Line::from(Span::styled("─".repeat(40), Style::new().fg(Color::DarkGray)))); }
             MdEvent::TaskListMarker(checked) => self.push_text(if checked { "☑ " } else { "☐ " }, Style::new().fg(Color::Cyan)),
-            MdEvent::FootnoteReference(label) => self.push_text(format!("[${label}]"), Style::new().fg(Color::Cyan)),
+            MdEvent::FootnoteReference(label) => self.push_text(format!("[{label}]"), Style::new().fg(Color::Cyan)),
             MdEvent::InlineMath(math) => self.push_text(format!("${math}$"), Style::new().fg(Color::Cyan)),
             MdEvent::DisplayMath(math) => { self.flush_line(); self.lines.push(Line::from(Span::styled(math.into_string(), Style::new().fg(Color::Cyan)))); }
             MdEvent::Html(html) | MdEvent::InlineHtml(html) => self.push_text(html.into_string(), Style::new().fg(Color::DarkGray)),
@@ -401,7 +401,7 @@ impl MarkdownWriter {
                 let depth = self.list_stack.len().saturating_sub(1);
                 self.current.push(Span::raw("  ".repeat(depth)));
                 let marker = match self.list_stack.last_mut() {
-                    Some(Some(n)) => { let marker = format!("${n}. "); *n += 1; marker }
+                    Some(Some(n)) => { let marker = format!("{n}. "); *n += 1; marker }
                     _ => "• ".to_string(),
                 };
                 self.current.push(Span::styled(marker, Style::new().fg(Color::Cyan)));
