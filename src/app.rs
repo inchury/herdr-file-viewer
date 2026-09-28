@@ -48,6 +48,15 @@ const RENDER_TIMEOUT: Duration = Duration::from_secs(5);
 /// pair leaves startup selection unchanged.
 pub fn run(open_flag: Option<String>) -> io::Result<()> {
     let ctx = host::from_env();
+
+    // Enter the TUI before repository discovery/config/controller assembly. Git for Windows can
+    // take noticeable time to spawn even for read-only probes; showing a frame first makes startup
+    // latency independent of that work instead of leaving the user staring at the invoking shell.
+    let mut terminal = ratatui::try_init()?;
+    terminal.draw(|frame| {
+        frame.render_widget("Loading file viewer…", frame.area());
+    })?;
+
     let resolved = root::resolve(&ctx);
 
     // Load + resolve the plugin's optional TOML config once, up front (AC-3..AC-5, AC-14, AC-16,
@@ -199,7 +208,6 @@ pub fn run(open_flag: Option<String>) -> io::Result<()> {
             .with_overrides(to_argv(eff.open.clone()), to_argv(eff.reveal.clone())),
     ));
 
-    let mut terminal = ratatui::try_init()?;
     // Mouse is additive to the keyboard-first design (AC-18): herdr forwards mouse events to a
     // pane that requests capture, while reserving Shift+mouse for the terminal's own
     // selection/copy. Best-effort so a terminal without mouse support still runs.
