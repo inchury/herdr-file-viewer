@@ -1328,11 +1328,21 @@ impl Controller {
         self.dispatch_render();
     }
 
+    /// Refresh Git state after the terminal regains focus without blocking the input loop.
+    ///
+    /// Windows can resume a backgrounded terminal while Git/index/antivirus I/O is still cold.
+    /// Running status + changed-set synchronously here used to stall every mouse/key event behind
+    /// that work for seconds. Reuse the one-shot background refresh used by re-root instead; poll()
+    /// applies the result and re-renders when it arrives.
+    pub fn handle_focus_gained(&mut self) -> Effects {
+        self.dispatch_status_refresh();
+        Effects::redraw()
+    }
+
     /// Compute the new root's working-tree status + changed-set OFF the input thread (AC-17),
     /// to be applied by [`poll`]. A non-repo has no git state — apply the (empty) changed-only
-    /// filter synchronously and clear any pending fetch. Unlike `refresh_git_state` (which runs
-    /// synchronously on launch / editor-return / baseline-toggle / refresh / focus-gain), this is
-    /// the re-root path, where the heavier status/changed-set work must not block input.
+    /// filter synchronously and clear any pending fetch. Unlike `refresh_git_state` (used by explicit refresh/editor-return/baseline changes), this
+    /// path is also used on focus gain so expensive Git/index I/O never blocks the input loop.
     fn dispatch_status_refresh(&mut self) {
         if !self.is_git_repo {
             // Non-repo: both filters collapse to empty. Prefer the active mode's set.
