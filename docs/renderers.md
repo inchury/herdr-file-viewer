@@ -1,4 +1,4 @@
-> **Markdown file preview is built in.** `glow` is no longer required for `[MD]` file views. It may still be used by legacy/help rendering paths; `bat` and `delta` remain optional enhancements for source and full-diff views.
+> **Markdown file preview is built in using `pulldown-cmark` (CommonMark + GFM tables/tasks/strikethrough).** `glow` is no longer required for `[MD]` file views. It may still be used by legacy/help rendering paths; `bat` and `delta` remain optional enhancements for source and full-diff views.
 
 # External renderers (optional)
 
