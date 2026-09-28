@@ -1,6 +1,8 @@
 # herdr-file-viewer
 
-[![CI](https://github.com/smarzban/herdr-file-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/smarzban/herdr-file-viewer/actions/workflows/ci.yml)
+[한국어 README](README_KO.md)
+
+[![CI](https://github.com/inchury/herdr-file-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/inchury/herdr-file-viewer/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Rust 1.96+](https://img.shields.io/badge/rust-1.96%2B-orange.svg)
 ![herdr 0.7+](https://img.shields.io/badge/herdr-0.7%2B-8a2be2)
@@ -10,9 +12,6 @@
 that file deserves: a **diff** if it changed, **rendered markdown**, or **highlighted code**.
 Agents can drop you on a file or a line. You pin one file, mark a range, and paste those notes
 back into the chat. It never touches your files.
-
-> [!TIP]
-> Get **[tsk](https://github.com/smarzban/herdr-tsk)** to keep your work and your agents’ work on one board. TUI for you, CLI for them.
 
 ![herdr-file-viewer open in a herdr split beside your work: the directory tree on the left, syntax-highlighted content on the right](assets/File-viewer.png)
 
@@ -33,7 +32,7 @@ back into the chat. It never touches your files.
 - **The right view, automatically.** Markdown opens as a rendered document preview (including changed
   README/CHANGELOG files), changed source opens as a diff, and code is syntax-highlighted. Compact
   diffs are colored natively (`+` green / `-` red) for stable Windows/ConPTY rendering. Press
-  `v` only when you want another available view.
+  Markdown tables reflow to the content pane width instead of stretching the terminal; turn wrapping off with `w` when you prefer horizontal scrolling. Press `v` only when you want another available view.
 - **Git in the tree.** `M`/`A`/`D`/`?` on every row, a changed-only filter (`c`), jump next/prev
   changed file (`]`/`[`), flip the baseline between your branch and `HEAD` (`b`). Not a separate
   git client.
@@ -67,14 +66,21 @@ A taste of what the keys do — the [full key & mouse reference](docs/keys.md) h
 | `Z` | Full-screen the current file |
 | `e` / `O` / `R` | Hand off: editor / OS default app / file manager |
 | `?` | Help overlay: What's New, keys, settings, about |
+| `Esc` | Close the current overlay/zoom; at the outer level, show an explicit exit confirmation before leaving the viewer |
 
 ## Quick start
 
-```bash
-# 1. Install the plugin (downloads a prebuilt binary for released versions; otherwise builds from source):
-herdr plugin install smarzban/herdr-file-viewer
+> [!IMPORTANT]
+> Install this fork from `inchury/herdr-file-viewer`. Installing `smarzban/herdr-file-viewer`
+> installs the upstream project and does **not** include this fork's native Markdown, Windows,
+> responsiveness, and exit-confirmation changes.
 
-# 2. (optional) install external renderers for full diff / source highlighting:
+```bash
+# Install this fork. A matching release binary is used when this fork publishes one;
+# otherwise the installer builds this checkout from source with Rust 1.96+.
+herdr plugin install inchury/herdr-file-viewer
+
+# Optional: install external renderers for full diff / source highlighting:
 # Markdown preview and compact diff need no external tools.
 brew install git-delta bat           # macOS, or use your package manager
 #   Linux/macOS helper: ./scripts/install-renderers.sh
@@ -119,7 +125,15 @@ help overlay's **Settings** section.
 ## Windows
 
 Native Windows is supported as a **preview** (install works the same way; the open actions use
-`-windows` action ids and herdr's preview channel). WSL works today with zero extra setup. See
+`-windows` action ids and herdr's preview channel). Targeted `path[:line]` opens are supported by
+the bundled PowerShell launchers. The built-in Markdown preview requires no `glow`, compact diffs
+render natively, and optional `delta` / `bat` can be installed with
+`scripts/install-renderers.ps1`.
+
+On focus regain, Git status/changed-set refresh runs off the input thread so a cold Git index,
+filesystem, or antivirus path does not intentionally block keyboard/mouse handling. Exiting from
+the outer viewer now asks for confirmation first, making the close key immediately visible before
+terminal teardown. WSL remains the mature fallback with zero extra plugin setup. See
 [docs/windows.md](docs/windows.md).
 
 ## Documentation
@@ -131,16 +145,16 @@ Full docs live in **[docs/](docs/README.md)**:
 - **[Usage guide](docs/usage.md)** — a feature-by-feature tour of the whole viewer.
 - **[Keys & mouse](docs/keys.md)** — the complete key table, mouse gestures, and editor hand-off.
 - **[Configuration](docs/configuration.md)** — the full `config.toml` reference and `[keys]` remapping.
-- **[External renderers](docs/renderers.md)** — the optional `glow` / `delta` / `bat` integrations and the plain-text fallback.
+- **[External renderers](docs/renderers.md)** — built-in Markdown/compact-diff rendering plus optional `delta` / `bat` enhancements (and legacy/help `glow` paths).
 - **[Windows (preview)](docs/windows.md)** — native-Windows specifics and WSL.
 - **[Architecture](ARCHITECTURE.md)** — one in-process TUI owning both columns, the component map, and the load-bearing decisions.
 - **[Security](SECURITY.md)** — the threat model for opening untrusted content, and how to report a vulnerability.
 
 ## Contributing
 
-Bug reports and feature requests are very welcome — please
-[open an issue](https://github.com/smarzban/herdr-file-viewer/issues). To build, test, and send a
-change, see [CONTRIBUTING.md](CONTRIBUTING.md).
+This repository is a fork with additional native Markdown/Windows/UX work. Report issues for this
+fork at [inchury/herdr-file-viewer/issues](https://github.com/inchury/herdr-file-viewer/issues).
+For source builds and contribution conventions, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
