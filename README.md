@@ -46,7 +46,7 @@ back into the chat. It never touches your files.
   whatever you set as `editor` (else `$EDITOR`). You change the file there; the viewer never writes
   it, and comes back when you quit the editor.
 - **Beside your work, safe on anything.** One keypress in a herdr split (or its own tab). Read-only,
-  hardened for an agent's worktree or a fresh clone. Markdown and compact diffs render natively; `delta` / `bat` remain optional enhancements.
+  hardened for an agent's worktree or a fresh clone. Markdown is parsed with pulldown-cmark/CommonMark+GFM and rendered natively; compact diffs render natively; `delta` / `bat` remain optional enhancements.
   See [SECURITY.md](SECURITY.md).
 
 ## Highlights
