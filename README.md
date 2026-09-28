@@ -1,5 +1,7 @@
 # herdr-file-viewer
 
+[한국어 README](README_KO.md)
+
 [![CI](https://github.com/smarzban/herdr-file-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/smarzban/herdr-file-viewer/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Rust 1.96+](https://img.shields.io/badge/rust-1.96%2B-orange.svg)
@@ -33,7 +35,7 @@ back into the chat. It never touches your files.
 - **The right view, automatically.** Markdown opens as a rendered document preview (including changed
   README/CHANGELOG files), changed source opens as a diff, and code is syntax-highlighted. Compact
   diffs are colored natively (`+` green / `-` red) for stable Windows/ConPTY rendering. Press
-  `v` only when you want another available view.
+  Markdown tables reflow to the content pane width instead of stretching the terminal; turn wrapping off with `w` when you prefer horizontal scrolling. Press `v` only when you want another available view.
 - **Git in the tree.** `M`/`A`/`D`/`?` on every row, a changed-only filter (`c`), jump next/prev
   changed file (`]`/`[`), flip the baseline between your branch and `HEAD` (`b`). Not a separate
   git client.
@@ -67,6 +69,7 @@ A taste of what the keys do — the [full key & mouse reference](docs/keys.md) h
 | `Z` | Full-screen the current file |
 | `e` / `O` / `R` | Hand off: editor / OS default app / file manager |
 | `?` | Help overlay: What's New, keys, settings, about |
+| `Esc` | Close the current overlay/zoom; at the outer level, show an explicit exit confirmation before leaving the viewer |
 
 ## Quick start
 
@@ -119,7 +122,15 @@ help overlay's **Settings** section.
 ## Windows
 
 Native Windows is supported as a **preview** (install works the same way; the open actions use
-`-windows` action ids and herdr's preview channel). WSL works today with zero extra setup. See
+`-windows` action ids and herdr's preview channel). Targeted `path[:line]` opens are supported by
+the bundled PowerShell launchers. The built-in Markdown preview requires no `glow`, compact diffs
+render natively, and optional `delta` / `bat` can be installed with
+`scripts/install-renderers.ps1`.
+
+On focus regain, Git status/changed-set refresh runs off the input thread so a cold Git index,
+filesystem, or antivirus path does not intentionally block keyboard/mouse handling. Exiting from
+the outer viewer now asks for confirmation first, making the close key immediately visible before
+terminal teardown. WSL remains the mature fallback with zero extra plugin setup. See
 [docs/windows.md](docs/windows.md).
 
 ## Documentation
@@ -131,7 +142,7 @@ Full docs live in **[docs/](docs/README.md)**:
 - **[Usage guide](docs/usage.md)** — a feature-by-feature tour of the whole viewer.
 - **[Keys & mouse](docs/keys.md)** — the complete key table, mouse gestures, and editor hand-off.
 - **[Configuration](docs/configuration.md)** — the full `config.toml` reference and `[keys]` remapping.
-- **[External renderers](docs/renderers.md)** — the optional `glow` / `delta` / `bat` integrations and the plain-text fallback.
+- **[External renderers](docs/renderers.md)** — built-in Markdown/compact-diff rendering plus optional `delta` / `bat` enhancements (and legacy/help `glow` paths).
 - **[Windows (preview)](docs/windows.md)** — native-Windows specifics and WSL.
 - **[Architecture](ARCHITECTURE.md)** — one in-process TUI owning both columns, the component map, and the load-bearing decisions.
 - **[Security](SECURITY.md)** — the threat model for opening untrusted content, and how to report a vulnerability.
