@@ -397,9 +397,9 @@ fn event_loop(terminal: &mut DefaultTerminal, controller: &mut Controller) -> io
                     }
                     dirty |= fx.redraw;
                 }
-                // The pane regained focus (herdr forwards focus events to a pane that opts in):
-                // re-read git state so external changes — a merge, pull, or commit in another
-                // pane — show in the tree without a relaunch. FocusLost needs no action.
+                // The pane regained focus. Queue Git refresh off-thread: on Windows a resumed
+                // terminal can make Git/index/AV I/O take seconds, and doing that work in this
+                // match arm would block all subsequent mouse/key events behind FocusGained.
                 Event::FocusGained => dirty |= controller.handle_focus_gained().redraw,
                 Event::FocusLost => {}
                 // The pane was resized: redraw so the two-column layout and content reflow to
