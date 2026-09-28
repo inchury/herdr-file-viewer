@@ -1074,6 +1074,17 @@ mod tests {
     }
 
     #[test]
+    fn native_markdown_table_wraps_to_pane_width() {
+        let raw = "| Module | Responsibility |\n| --- | --- |\n| host | This is a deliberately long responsibility that must wrap instead of widening the table beyond the content pane. |";
+        let text = render_native_markdown(raw, Some(60));
+        assert!(
+            text.lines.iter().all(|line| line.width() <= 60),
+            "every rendered table row and border must fit the requested pane width"
+        );
+        assert!(text.lines.len() > 5, "the long cell should wrap onto additional table rows");
+    }
+
+    #[test]
     fn native_markdown_neutralizes_terminal_controls() {
         let text = render_native_markdown("# safe\x1b[2J title", None);
         let flat = text.lines.iter().flat_map(|line| line.spans.iter()).map(|span| span.content.as_ref()).collect::<String>();
