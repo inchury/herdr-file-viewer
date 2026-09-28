@@ -266,6 +266,18 @@ pub fn render(
     file_name: Option<&str>,
     caps: Caps,
 ) -> (Text<'static>, Option<String>) {
+    render_with_markdown_width(renderers, prepared, mode, raw_diff, file_name, caps, None)
+}
+
+pub fn render_with_markdown_width(
+    renderers: &Renderers,
+    prepared: &Prepared,
+    mode: ViewMode,
+    raw_diff: Option<&str>,
+    file_name: Option<&str>,
+    caps: Caps,
+    markdown_width: Option<u16>,
+) -> (Text<'static>, Option<String>) {
     let name = sanitize_name(file_name.unwrap_or(""));
     let name = name.as_str();
     // A diff is derived from git, not from the file's bytes, so it renders even for a
@@ -300,7 +312,7 @@ pub fn render(
     };
 
     match mode {
-        ViewMode::RenderedMarkdown => (render_native_markdown(content), base_notice),
+        ViewMode::RenderedMarkdown => (render_native_markdown(content, markdown_width), base_notice),
         ViewMode::SyntaxContent => delegate(
             &with_name(&renderers.syntax, name),
             content,
@@ -313,14 +325,14 @@ pub fn render(
 }
 
 /// Parse CommonMark/GFM Markdown and map its semantic event stream to Ratatui.
-fn render_native_markdown(raw: &str) -> Text<'static> {
+fn render_native_markdown(raw: &str, width: Option<u16>) -> Text<'static> {
     let safe = neutralize_terminal_control(raw, ControlMode::Plain);
     let mut options = MdOptions::empty();
     options.insert(MdOptions::ENABLE_TABLES);
     options.insert(MdOptions::ENABLE_STRIKETHROUGH);
     options.insert(MdOptions::ENABLE_TASKLISTS);
     options.insert(MdOptions::ENABLE_GFM);
-    let mut out = MarkdownWriter::default();
+    let mut out = MarkdownWriter { table_width: width.map(usize::from), ..Default::default() };
     for event in MdParser::new_ext(&safe, options) { out.event(event); }
     out.finish()
 }
@@ -334,6 +346,7 @@ struct MarkdownWriter {
     quote_depth: usize,
     in_code_block: bool,
     table: Option<MarkdownTable>,
+    table_width: Option<usize>,
 }
 
 #[derive(Default)]
@@ -463,7 +476,19 @@ impl MarkdownWriter {
         if cols == 0 { return; }
         let mut widths = vec![1usize; cols];
         for row in &table.rows {
-            for (i, cell) in row.iter().enumerate() { widths[i] = widths[i].max(Line::from(cell.clone()).width()); }
+            for (i, cell) in row.iter().enumerate() {
+                widths[i] = widths[i].max(Line::from(cell.clone()).width());
+            }
+        }
+        if let Some(total_width) = self.table_width {
+            // A boxed table consumes 3 columns per cell plus the final border. Shrink only as
+            // much as necessary, taking space from the widest columns first so identifier-like
+            // columns stay compact and prose columns absorb wrapping.
+            let content_budget = total_width.saturating_sub(cols * 3 + 1).max(cols);
+            while widths.iter().sum::<usize>() > content_budget {
+                let Some((i, _)) = widths.iter().enumerate().filter(|(_, w)| **w > 1).max_by_key(|(_, w)| **w) else { break; };
+                widths[i] -= 1;
+            }
         }
         let border = |left: char, middle: char, right: char| {
             let mut s = String::new(); s.push(left);
@@ -476,16 +501,22 @@ impl MarkdownWriter {
         };
         self.lines.push(border('┌', '┬', '┐'));
         for (row_index, row) in table.rows.into_iter().enumerate() {
-            let mut spans = vec![Span::styled("│ ", Style::new().fg(Color::DarkGray))];
-            for col in 0..cols {
-                if col > 0 { spans.push(Span::styled(" │ ", Style::new().fg(Color::DarkGray))); }
-                let cell = row.get(col).cloned().unwrap_or_default();
-                let used = Line::from(cell.clone()).width();
-                spans.extend(cell);
-                spans.push(Span::raw(" ".repeat(widths[col].saturating_sub(used))));
+            let wrapped: Vec<Vec<Vec<Span<'static>>>> = (0..cols)
+                .map(|col| wrap_table_cell(row.get(col).cloned().unwrap_or_default(), widths[col]))
+                .collect();
+            let height = wrapped.iter().map(Vec::len).max().unwrap_or(1);
+            for line_index in 0..height {
+                let mut spans = vec![Span::styled("│ ", Style::new().fg(Color::DarkGray))];
+                for col in 0..cols {
+                    if col > 0 { spans.push(Span::styled(" │ ", Style::new().fg(Color::DarkGray))); }
+                    let cell_line = wrapped[col].get(line_index).cloned().unwrap_or_default();
+                    let used = Line::from(cell_line.clone()).width();
+                    spans.extend(cell_line);
+                    spans.push(Span::raw(" ".repeat(widths[col].saturating_sub(used))));
+                }
+                spans.push(Span::styled(" │", Style::new().fg(Color::DarkGray)));
+                self.lines.push(Line::from(spans));
             }
-            spans.push(Span::styled(" │", Style::new().fg(Color::DarkGray)));
-            self.lines.push(Line::from(spans));
             if row_index + 1 == table.header_rows { self.lines.push(border('├', '┼', '┤')); }
         }
         self.lines.push(border('└', '┴', '┘'));
@@ -495,6 +526,33 @@ impl MarkdownWriter {
         while self.lines.last().is_some_and(|line| line.spans.is_empty()) { self.lines.pop(); }
         Text::from(self.lines)
     }
+}
+
+fn wrap_table_cell(spans: Vec<Span<'static>>, width: usize) -> Vec<Vec<Span<'static>>> {
+    let width = width.max(1);
+    let mut lines = vec![Vec::new()];
+    let mut used = 0usize;
+    for span in spans {
+        let style = span.style;
+        for word in span.content.split_inclusive(' ') {
+            let word_width = Line::from(word).width();
+            if used > 0 && used + word_width > width {
+                lines.push(Vec::new());
+                used = 0;
+            }
+            for ch in word.chars() {
+                let s = ch.to_string();
+                let ch_width = Line::from(s.as_str()).width();
+                if used > 0 && used + ch_width > width {
+                    lines.push(Vec::new());
+                    used = 0;
+                }
+                lines.last_mut().unwrap().push(Span::styled(s, style));
+                used += ch_width;
+            }
+        }
+    }
+    lines
 }
 
 /// Render unified-diff text without an ANSI subprocess. This is intentionally conservative:
@@ -1017,7 +1075,7 @@ mod tests {
 
     #[test]
     fn native_markdown_neutralizes_terminal_controls() {
-        let text = render_native_markdown("# safe\x1b[2J title");
+        let text = render_native_markdown("# safe\x1b[2J title", None);
         let flat = text.lines.iter().flat_map(|line| line.spans.iter()).map(|span| span.content.as_ref()).collect::<String>();
         assert!(!flat.contains('\x1b'));
         assert!(flat.contains("safe title"));
