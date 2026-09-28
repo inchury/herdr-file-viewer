@@ -77,11 +77,19 @@
 
 ## 빠른 시작
 
+> **중요:** 이 fork의 기능을 사용하려면 반드시 `inchury/herdr-file-viewer`에서 설치해야
+> 합니다. `smarzban/herdr-file-viewer`를 설치하면 upstream 버전이 설치되며, 이 fork에서
+> 추가한 내장 Markdown renderer, Windows 개선, 포커스 복귀 응답성 개선, 종료 확인 기능 등이
+> 포함되지 않습니다.
+
 플러그인을 설치합니다.
 
 ```bash
-herdr plugin install smarzban/herdr-file-viewer
+herdr plugin install inchury/herdr-file-viewer
 ```
+
+이 fork에 현재 버전과 일치하는 release binary가 있으면 SHA-256 검증 후 사용하고,
+없으면 해당 checkout의 소스를 Rust 1.96+로 빌드합니다.
 
 Markdown preview와 compact diff는 외부 renderer가 필요하지 않습니다. Full diff와 소스
 구문 강조를 강화하려면 `delta`와 `bat`를 선택적으로 설치할 수 있습니다.
@@ -206,8 +214,9 @@ cargo build --release
 cargo test
 ```
 
-버그 리포트와 기능 제안은 환영합니다. 기여 방법은 [CONTRIBUTING.md](CONTRIBUTING.md)를
-참고하세요.
+이 fork에서 발생하는 버그나 추가 기능 요청은
+[inchury/herdr-file-viewer Issues](https://github.com/inchury/herdr-file-viewer/issues)에
+등록해 주세요. 기여 방법은 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.
 
 ## 라이선스
 
