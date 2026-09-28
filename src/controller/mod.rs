@@ -3013,19 +3013,11 @@ impl Controller {
             self.leave_host_zoom();
             return Effects::redraw();
         }
-        // Annotations are session-only, so quitting destroys them. Confirm first rather than lose
-        // work to a stray `q`. The outermost layer, after search/unzoom have had their turn.
-        // Opt out with `confirm_discard = false`.
-        if self.confirm_discard && !self.annotations.is_empty() {
-            self.modal = Modal::DiscardConfirm(DiscardAction::Quit);
-            return Effects::redraw();
-        }
-        // Quitting: release any host pane zoom the viewer opened so it does not outlive the viewer.
-        self.leave_host_zoom();
-        Effects {
-            quit: true,
-            ..Default::default()
-        }
+        // Always acknowledge the close key before entering terminal teardown. Besides protecting
+        // session annotations, this gives an immediate visual response on terminals where restoring
+        // the alternate screen is noticeably slower than handling the key itself.
+        self.modal = Modal::DiscardConfirm(DiscardAction::Quit);
+        Effects::redraw()
     }
 
     fn clear_focused_search(&mut self) -> bool {
