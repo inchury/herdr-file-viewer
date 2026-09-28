@@ -339,7 +339,7 @@ struct MarkdownWriter {
 #[derive(Default)]
 struct MarkdownTable {
     rows: Vec<Vec<Vec<Span<'static>>>>,
-    row: Vec<Vec<Span<'static>>,
+    row: Vec<Vec<Span<'static>>>,
     cell: Vec<Span<'static>>,
     in_head: bool,
     header_rows: usize,
