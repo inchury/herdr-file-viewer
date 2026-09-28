@@ -6,20 +6,11 @@
 use super::*;
 
 impl Controller {
-    /// The pane regained focus (the run loop forwards herdr's focus events): re-read the world so
-    /// external changes show in the tree. Still queries no git without a repo (AC-26), but it is no
-    /// longer a bare no-op there: `refresh_git_state` also drops the tree's cached fold shapes, and
-    /// a directory outside a repo gains and loses files just the same. Returning early here left a
-    /// compacted non-git tree stale until the user hit `r`. In **changed-only** mode the refresh
-    /// re-filters the visible list, which can move the cursor to a different file; if the
-    /// selection actually changed, re-render so the content pane matches the highlighted row —
-    /// otherwise the content (and its scroll) is left untouched, the common case.
+    /// The pane regained focus. Refresh Git state off the input thread so a cold Windows
+    /// Git index / filesystem / antivirus path cannot stall keyboard and mouse handling.
+    /// `poll()` applies the result and re-renders once it arrives.
     pub fn handle_focus_gained(&mut self) -> Effects {
-        let before = self.tree.selected().map(|n| n.path);
-        self.refresh_git_state();
-        if self.tree.selected().map(|n| n.path) != before {
-            self.dispatch_render();
-        }
+        self.dispatch_status_refresh();
         Effects::redraw()
     }
 

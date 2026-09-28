@@ -46,7 +46,7 @@ back into the chat. It never touches your files.
   whatever you set as `editor` (else `$EDITOR`). You change the file there; the viewer never writes
   it, and comes back when you quit the editor.
 - **Beside your work, safe on anything.** One keypress in a herdr split (or its own tab). Read-only,
-  hardened for an agent's worktree or a fresh clone. Delegates rendering to `glow` / `delta` / `bat`.
+  hardened for an agent's worktree or a fresh clone. Markdown is parsed with pulldown-cmark/CommonMark+GFM and rendered natively; compact diffs render natively; `delta` / `bat` remain optional enhancements.
   See [SECURITY.md](SECURITY.md).
 
 ## Highlights
@@ -74,8 +74,9 @@ A taste of what the keys do — the [full key & mouse reference](docs/keys.md) h
 # 1. Install the plugin (downloads a prebuilt binary for released versions; otherwise builds from source):
 herdr plugin install smarzban/herdr-file-viewer
 
-# 2. (recommended) install the renderers, so markdown / diffs / code are styled, not plain text:
-brew install glow git-delta bat     # macOS, or use your package manager
+# 2. (optional) install external renderers for full diff / source highlighting:
+# Markdown preview and compact diff need no external tools.
+brew install git-delta bat           # macOS, or use your package manager
 #   Linux/macOS helper: ./scripts/install-renderers.sh
 #   Windows PowerShell: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-renderers.ps1
 ```

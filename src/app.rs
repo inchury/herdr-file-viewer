@@ -48,6 +48,15 @@ const RENDER_TIMEOUT: Duration = Duration::from_secs(5);
 /// pair leaves startup selection unchanged.
 pub fn run(open_flag: Option<String>) -> io::Result<()> {
     let ctx = host::from_env();
+
+    // Enter the TUI before repository discovery/config/controller assembly. Git for Windows can
+    // take noticeable time to spawn even for read-only probes; showing a frame first makes startup
+    // latency independent of that work instead of leaving the user staring at the invoking shell.
+    let mut terminal = ratatui::try_init()?;
+    terminal.draw(|frame| {
+        frame.render_widget("Loading file viewer…", frame.area());
+    })?;
+
     let resolved = root::resolve(&ctx);
 
     // Load + resolve the plugin's optional TOML config once, up front (AC-3..AC-5, AC-14, AC-16,
@@ -199,7 +208,6 @@ pub fn run(open_flag: Option<String>) -> io::Result<()> {
             .with_overrides(to_argv(eff.open.clone()), to_argv(eff.reveal.clone())),
     ));
 
-    let mut terminal = ratatui::try_init()?;
     // Mouse is additive to the keyboard-first design (AC-18): herdr forwards mouse events to a
     // pane that requests capture, while reserving Shift+mouse for the terminal's own
     // selection/copy. Best-effort so a terminal without mouse support still runs.
@@ -212,13 +220,22 @@ pub fn run(open_flag: Option<String>) -> io::Result<()> {
     // mouse-reporting mode.
     let prev_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        let _ = execute!(io::stdout(), DisableMouseCapture);
-        let _ = execute!(io::stdout(), DisableFocusChange);
+        let _ = execute!(
+            io::stdout(),
+            DisableMouseCapture,
+            DisableFocusChange
+        );
         prev_hook(info);
     }));
     let outcome = event_loop(&mut terminal, &mut controller);
-    let _ = execute!(io::stdout(), DisableMouseCapture);
-    let _ = execute!(io::stdout(), DisableFocusChange);
+    // One terminal write/flush for the viewer-specific modes before ratatui restores raw mode and
+    // the alternate screen. On Windows the focus command is effectively free, while combining the
+    // pair avoids an extra stdout synchronization on every normal exit.
+    let _ = execute!(
+        io::stdout(),
+        DisableMouseCapture,
+        DisableFocusChange
+    );
     ratatui::try_restore()?;
     outcome
 }
@@ -380,9 +397,9 @@ fn event_loop(terminal: &mut DefaultTerminal, controller: &mut Controller) -> io
                     }
                     dirty |= fx.redraw;
                 }
-                // The pane regained focus (herdr forwards focus events to a pane that opts in):
-                // re-read git state so external changes — a merge, pull, or commit in another
-                // pane — show in the tree without a relaunch. FocusLost needs no action.
+                // The pane regained focus. Queue Git refresh off-thread: on Windows a resumed
+                // terminal can make Git/index/AV I/O take seconds, and doing that work in this
+                // match arm would block all subsequent mouse/key events behind FocusGained.
                 Event::FocusGained => dirty |= controller.handle_focus_gained().redraw,
                 Event::FocusLost => {}
                 // The pane was resized: redraw so the two-column layout and content reflow to
@@ -569,7 +586,15 @@ impl ContentProvider for LiveContent {
                         markdown: render::with_wrap_width(&base_renderers.markdown, w),
                         ..base_renderers.clone()
                     };
-                    render::render(&wrapped, &prepared, mode, raw_diff, name, self.caps)
+                    render::render_with_markdown_width(
+                        &wrapped,
+                        &prepared,
+                        mode,
+                        raw_diff,
+                        name,
+                        self.caps,
+                        Some(w),
+                    )
                 }
                 (ViewMode::Diff | ViewMode::FullDiff, _, Some(w)) => {
                     // Delta is piped rather than attached to a terminal, so pass the drawable
@@ -1200,6 +1225,29 @@ mod tests {
             route_annotation_key(&mut controller, route_key(KeyCode::Char('q'))).is_none(),
             "without an annotation modal the key proceeds to normal global decoding"
         );
+        drop(controller);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn close_without_annotations_opens_quit_confirm() {
+        use crossterm::event::KeyCode;
+
+        let (mut controller, root) = route_controller("app-route-plain-quit-confirm");
+        let effects = controller.handle(crate::intent::Intent::Close);
+        assert!(effects.redraw && !effects.quit);
+        assert!(controller.discard_confirm_open());
+
+        let effects = route_annotation_key(&mut controller, route_key(KeyCode::Esc))
+            .expect("quit confirm owns esc");
+        assert!(!effects.quit);
+        assert!(!controller.discard_confirm_open());
+
+        controller.handle(crate::intent::Intent::Close);
+        let effects = route_annotation_key(&mut controller, route_key(KeyCode::Char('q')))
+            .expect("quit confirm owns q");
+        assert!(effects.quit);
+
         drop(controller);
         let _ = std::fs::remove_dir_all(root);
     }

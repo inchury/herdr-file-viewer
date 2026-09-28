@@ -62,3 +62,7 @@ PowerShell launcher scripts.
 
 See also [install & updating](install.md) for the shared install flow and [summoning](summoning.md)
 for the open actions and launcher.
+
+### Built-in Markdown preview
+
+`[MD]` file preview is rendered inside the plugin and does not require `glow` on PATH. A fresh Windows install therefore gets Markdown headings, quotes, lists/tasks, fenced code, rules, and table structure without installing an external renderer. `bat` and `delta` remain optional for richer source/full-diff presentation.
