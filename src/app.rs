@@ -1230,6 +1230,29 @@ mod tests {
     }
 
     #[test]
+    fn close_without_annotations_opens_quit_confirm() {
+        use crossterm::event::KeyCode;
+
+        let (mut controller, root) = route_controller("app-route-plain-quit-confirm");
+        let effects = controller.handle(crate::intent::Intent::Close);
+        assert!(effects.redraw && !effects.quit);
+        assert!(controller.discard_confirm_open());
+
+        let effects = route_annotation_key(&mut controller, route_key(KeyCode::Esc))
+            .expect("quit confirm owns esc");
+        assert!(!effects.quit);
+        assert!(!controller.discard_confirm_open());
+
+        controller.handle(crate::intent::Intent::Close);
+        let effects = route_annotation_key(&mut controller, route_key(KeyCode::Char('q')))
+            .expect("quit confirm owns q");
+        assert!(effects.quit);
+
+        drop(controller);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn quit_confirm_keys_route_before_globals() {
         use crossterm::event::KeyCode;
 
