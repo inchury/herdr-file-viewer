@@ -2614,7 +2614,7 @@ fn draw_annotation_editor(frame: &mut Frame, area: Rect, editor: &AnnotationEdit
 
 /// The discard confirm's title. The footer is built per action (the verb and proceed key differ
 /// between quitting and switching worktree). Static/derived, so no sanitization is needed.
-const QUIT_CONFIRM_TITLE: &str = "Discard annotations?";
+const QUIT_CONFIRM_TITLE: &str = "Exit file viewer?";
 
 /// The most annotation rows the confirm lists before collapsing the tail into a `+N more` line.
 /// The dialog is a last look, not the overview: it stays a glanceable box on a short terminal
@@ -2626,15 +2626,23 @@ const QUIT_CONFIRM_MAX_ROWS: usize = 8;
 /// long note cannot stretch the box) and the rows are capped by [`QUIT_CONFIRM_MAX_ROWS`].
 fn draw_discard_confirm(frame: &mut Frame, area: Rect, confirm: &DiscardConfirmView) {
     let count = confirm.rows.len();
-    let heading = format!(
-        "{count} annotation{} will be lost:",
-        if count == 1 { "" } else { "s" }
-    );
-    let footer_text = format!(
-        "y copy & {verb} · {key} {verb} · esc cancel",
-        verb = confirm.verb,
-        key = confirm.proceed_key
-    );
+    let heading = if count == 0 {
+        "Close the file viewer and return to the terminal?".to_string()
+    } else {
+        format!(
+            "{count} annotation{} will be lost:",
+            if count == 1 { "" } else { "s" }
+        )
+    };
+    let footer_text = if count == 0 {
+        format!("{key} quit · esc cancel", key = confirm.proceed_key)
+    } else {
+        format!(
+            "y copy & {verb} · {key} {verb} · esc cancel",
+            verb = confirm.verb,
+            key = confirm.proceed_key
+        )
+    };
     let footer = Line::styled(footer_text, Style::new().fg(Color::Reset)).centered();
 
     let shown = confirm.rows.len().min(QUIT_CONFIRM_MAX_ROWS);
