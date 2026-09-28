@@ -332,6 +332,7 @@ struct MarkdownWriter {
     styles: Vec<Style>,
     list_stack: Vec<Option<u64>>,
     quote_depth: usize,
+    in_code_block: bool,
     table: Option<MarkdownTable>,
 }
 
@@ -367,7 +368,18 @@ impl MarkdownWriter {
         match event {
             MdEvent::Start(tag) => self.start(tag),
             MdEvent::End(tag) => self.end(tag),
-            MdEvent::Text(text) => { self.prefix_block(); self.push_text(text.into_string(), Style::new()); }
+            MdEvent::Text(text) => {
+                self.prefix_block();
+                if self.in_code_block {
+                    let text = text.into_string();
+                    for (i, line) in text.split('\n').enumerate() {
+                        if i > 0 { self.flush_line(); }
+                        if !line.is_empty() { self.push_text(line.to_owned(), Style::new()); }
+                    }
+                } else {
+                    self.push_text(text.into_string(), Style::new());
+                }
+            }
             MdEvent::Code(code) => { self.prefix_block(); self.push_text(format!(" {} ", code), Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)); }
             MdEvent::SoftBreak => self.push_text(" ", Style::new()),
             MdEvent::HardBreak => self.flush_line(),
@@ -394,7 +406,7 @@ impl MarkdownWriter {
             MdTag::Strikethrough => self.styles.push(Style::new().add_modifier(Modifier::CROSSED_OUT)),
             MdTag::Link { .. } => self.styles.push(Style::new().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED)),
             MdTag::BlockQuote(_) => { self.quote_depth += 1; self.prefix_block(); }
-            MdTag::CodeBlock(_) => { self.flush_line(); self.styles.push(Style::new().fg(Color::Cyan)); }
+            MdTag::CodeBlock(_) => { self.flush_line(); self.in_code_block = true; self.styles.push(Style::new().fg(Color::Cyan)); }
             MdTag::List(start) => self.list_stack.push(start),
             MdTag::Item => {
                 self.prefix_block();
@@ -421,7 +433,7 @@ impl MarkdownWriter {
             MdTagEnd::Heading(_) => { self.styles.pop(); self.flush_line(); self.blank_line(); }
             MdTagEnd::Strong | MdTagEnd::Emphasis | MdTagEnd::Strikethrough | MdTagEnd::Link => { self.styles.pop(); }
             MdTagEnd::BlockQuote(_) => { self.flush_line(); self.quote_depth = self.quote_depth.saturating_sub(1); }
-            MdTagEnd::CodeBlock => { self.styles.pop(); self.flush_line(); self.blank_line(); }
+            MdTagEnd::CodeBlock => { self.styles.pop(); self.in_code_block = false; self.flush_line(); self.blank_line(); }
             MdTagEnd::List(_) => { self.list_stack.pop(); }
             MdTagEnd::Item => self.flush_line(),
             MdTagEnd::TableCell => { if let Some(table) = self.table.as_mut() { table.row.push(std::mem::take(&mut table.cell)); } }
@@ -431,7 +443,15 @@ impl MarkdownWriter {
                     if table.in_head { table.header_rows = table.rows.len(); }
                 }
             }
-            MdTagEnd::TableHead => { if let Some(table) = self.table.as_mut() { table.in_head = false; } }
+            MdTagEnd::TableHead => {
+                if let Some(table) = self.table.as_mut() {
+                    if !table.row.is_empty() {
+                        table.rows.push(std::mem::take(&mut table.row));
+                    }
+                    table.header_rows = table.rows.len();
+                    table.in_head = false;
+                }
+            }
             MdTagEnd::Table => {
                 if let Some(table) = self.table.take() { self.render_table(table); self.blank_line(); }
             }
