@@ -586,7 +586,15 @@ impl ContentProvider for LiveContent {
                         markdown: render::with_wrap_width(&base_renderers.markdown, w),
                         ..base_renderers.clone()
                     };
-                    render::render(&wrapped, &prepared, mode, raw_diff, name, self.caps)
+                    render::render_with_markdown_width(
+                        &wrapped,
+                        &prepared,
+                        mode,
+                        raw_diff,
+                        name,
+                        self.caps,
+                        Some(w),
+                    )
                 }
                 (ViewMode::Diff | ViewMode::FullDiff, _, Some(w)) => {
                     // Delta is piped rather than attached to a terminal, so pass the drawable
