@@ -2,7 +2,7 @@
 
 [한국어 README](README_KO.md)
 
-[![CI](https://github.com/smarzban/herdr-file-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/smarzban/herdr-file-viewer/actions/workflows/ci.yml)
+[![CI](https://github.com/inchury/herdr-file-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/inchury/herdr-file-viewer/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Rust 1.96+](https://img.shields.io/badge/rust-1.96%2B-orange.svg)
 ![herdr 0.7+](https://img.shields.io/badge/herdr-0.7%2B-8a2be2)
@@ -12,9 +12,6 @@
 that file deserves: a **diff** if it changed, **rendered markdown**, or **highlighted code**.
 Agents can drop you on a file or a line. You pin one file, mark a range, and paste those notes
 back into the chat. It never touches your files.
-
-> [!TIP]
-> Get **[tsk](https://github.com/smarzban/herdr-tsk)** to keep your work and your agents’ work on one board. TUI for you, CLI for them.
 
 ![herdr-file-viewer open in a herdr split beside your work: the directory tree on the left, syntax-highlighted content on the right](assets/File-viewer.png)
 
@@ -73,11 +70,17 @@ A taste of what the keys do — the [full key & mouse reference](docs/keys.md) h
 
 ## Quick start
 
-```bash
-# 1. Install the plugin (downloads a prebuilt binary for released versions; otherwise builds from source):
-herdr plugin install smarzban/herdr-file-viewer
+> [!IMPORTANT]
+> Install this fork from `inchury/herdr-file-viewer`. Installing `smarzban/herdr-file-viewer`
+> installs the upstream project and does **not** include this fork's native Markdown, Windows,
+> responsiveness, and exit-confirmation changes.
 
-# 2. (optional) install external renderers for full diff / source highlighting:
+```bash
+# Install this fork. A matching release binary is used when this fork publishes one;
+# otherwise the installer builds this checkout from source with Rust 1.96+.
+herdr plugin install inchury/herdr-file-viewer
+
+# Optional: install external renderers for full diff / source highlighting:
 # Markdown preview and compact diff need no external tools.
 brew install git-delta bat           # macOS, or use your package manager
 #   Linux/macOS helper: ./scripts/install-renderers.sh
@@ -149,9 +152,9 @@ Full docs live in **[docs/](docs/README.md)**:
 
 ## Contributing
 
-Bug reports and feature requests are very welcome — please
-[open an issue](https://github.com/smarzban/herdr-file-viewer/issues). To build, test, and send a
-change, see [CONTRIBUTING.md](CONTRIBUTING.md).
+This repository is a fork with additional native Markdown/Windows/UX work. Report issues for this
+fork at [inchury/herdr-file-viewer/issues](https://github.com/inchury/herdr-file-viewer/issues).
+For source builds and contribution conventions, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
