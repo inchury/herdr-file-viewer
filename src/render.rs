@@ -299,13 +299,7 @@ pub fn render(
     };
 
     match mode {
-        ViewMode::RenderedMarkdown => delegate(
-            &with_name(&renderers.markdown, name),
-            content,
-            mode,
-            renderers.timeout,
-            base_notice,
-        ),
+        ViewMode::RenderedMarkdown => (render_native_markdown(content), base_notice),
         ViewMode::SyntaxContent => delegate(
             &with_name(&renderers.syntax, name),
             content,
@@ -317,6 +311,64 @@ pub fn render(
     }
 }
 
+/// Render common Markdown structure directly into ratatui; file preview never needs Glow.
+fn render_native_markdown(raw: &str) -> Text<'static> {
+    let safe = neutralize_terminal_control(raw, ControlMode::Plain);
+    let mut in_code = false;
+    let mut lines = Vec::new();
+    for raw_line in safe.lines() {
+        let trimmed = raw_line.trim_start();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_code = !in_code;
+            let language = trimmed[3..].trim();
+            if !language.is_empty() {
+                lines.push(Line::from(Span::styled(format!("  {language}"), Style::new().fg(Color::DarkGray).add_modifier(Modifier::ITALIC))));
+            }
+            continue;
+        }
+        if in_code {
+            lines.push(Line::from(Span::styled(format!("  {raw_line}"), Style::new().fg(Color::Cyan))));
+            continue;
+        }
+        let marks = trimmed.chars().take_while(|&ch| ch == '#').count();
+        if (1..=6).contains(&marks) && trimmed.as_bytes().get(marks) == Some(&b' ') {
+            let title = trimmed[marks + 1..].trim();
+            let style = if marks <= 2 { Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD) } else { Style::new().add_modifier(Modifier::BOLD) };
+            lines.push(Line::from(Span::styled(title.to_owned(), style)));
+            continue;
+        }
+        if let Some(quote) = trimmed.strip_prefix("> ") {
+            lines.push(Line::from(vec![Span::styled("│ ", Style::new().fg(Color::DarkGray)), Span::styled(quote.to_owned(), Style::new().add_modifier(Modifier::ITALIC))]));
+            continue;
+        }
+        if is_markdown_rule(trimmed) {
+            lines.push(Line::from(Span::styled("─".repeat(32), Style::new().fg(Color::DarkGray))));
+            continue;
+        }
+        if is_table_separator(trimmed) {
+            lines.push(Line::from(Span::styled(raw_line.to_owned(), Style::new().fg(Color::DarkGray).add_modifier(Modifier::DIM))));
+            continue;
+        }
+        if let Some(item) = trimmed.strip_prefix("- ").or_else(|| trimmed.strip_prefix("* ")) {
+            let indent = " ".repeat(raw_line.len().saturating_sub(trimmed.len()));
+            let (bullet, body) = if let Some(body) = item.strip_prefix("[ ] ") { ("☐", body) } else if let Some(body) = item.strip_prefix("[x] ").or_else(|| item.strip_prefix("[X] ")) { ("☑", body) } else { ("•", item) };
+            lines.push(Line::from(vec![Span::raw(indent), Span::styled(format!("{bullet} "), Style::new().fg(Color::Cyan)), Span::raw(body.to_owned())]));
+            continue;
+        }
+        lines.push(Line::from(raw_line.to_owned()));
+    }
+    Text::from(lines)
+}
+
+fn is_markdown_rule(line: &str) -> bool {
+    let compact: String = line.chars().filter(|ch| !ch.is_whitespace()).collect();
+    compact.len() >= 3 && (compact.chars().all(|ch| ch == '-') || compact.chars().all(|ch| ch == '*') || compact.chars().all(|ch| ch == '_'))
+}
+
+fn is_table_separator(line: &str) -> bool {
+    let trimmed = line.trim().trim_matches('|');
+    !trimmed.is_empty() && trimmed.split('|').all(|cell| { let cell = cell.trim().trim_matches(':'); cell.len() >= 3 && cell.chars().all(|ch| ch == '-') })
+}
 /// Render unified-diff text without an ANSI subprocess. This is intentionally conservative:
 /// additions/deletions get semantic colors, hunk headers are cyan, and file metadata is dimmed.
 /// The raw text is terminal-neutralized before styling, so hostile file names cannot inject
@@ -813,6 +865,27 @@ mod tests {
         fs::remove_file(&p).ok();
     }
 
+    #[test]
+    fn markdown_file_preview_is_native_and_does_not_need_glow() {
+        let renderers = Renderers { markdown: vec!["renderer-that-must-not-exist".into()], diff: vec![], full_diff: vec![], syntax: vec![], timeout: Duration::from_secs(1) };
+        let prepared = Prepared::Full { text: "# Title\n\n> quote\n\n- item\n- [x] done".into() };
+        let (text, notice) = render(&renderers, &prepared, ViewMode::RenderedMarkdown, None, Some("README.md"), Caps::default());
+        assert_eq!(notice, None);
+        let flat = text.lines.iter().flat_map(|line| line.spans.iter()).map(|span| span.content.as_ref()).collect::<Vec<_>>().join("\n");
+        assert!(flat.contains("Title"));
+        assert!(!flat.contains("# Title"));
+        assert!(flat.contains("│ "));
+        assert!(flat.contains("• "));
+        assert!(flat.contains("☑ "));
+    }
+
+    #[test]
+    fn native_markdown_neutralizes_terminal_controls() {
+        let text = render_native_markdown("# safe\x1b[2J title");
+        let flat = text.lines.iter().flat_map(|line| line.spans.iter()).map(|span| span.content.as_ref()).collect::<String>();
+        assert!(!flat.contains('\x1b'));
+        assert!(flat.contains("safe title"));
+    }
     #[test]
     fn raw_diff_is_bounded_and_neutralized_without_a_renderer_process() {
         let (text, notice) = render_raw_diff(Some("- old\n+ new\n"), Caps::default());
