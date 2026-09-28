@@ -594,7 +594,11 @@ struct RenderCompletion {
 /// changed-set against the active baseline (the changed-only filter, AC-6), both keyed by
 /// repo-root-relative path. Carried over a one-shot channel from the worker `re_root` spawns to
 /// the `poll` that applies them.
-type StatusResult = (BTreeMap<PathBuf, Status>, BTreeMap<PathBuf, Status>);
+type StatusResult = (
+    BTreeMap<PathBuf, Status>,
+    BTreeMap<PathBuf, Status>,
+    Option<String>,
+);
 
 /// The single open modal overlay, or [`Modal::None`] when the columns have focus. Collapses what
 /// were four parallel `Option<…State>` fields (picker / finder / prompt / help) into one value, so
@@ -1030,12 +1034,9 @@ impl Controller {
         // The launch base-branch hint is session-level — recorded once here and carried across
         // re-roots (F). It is `None` outside a repo / when herdr gave no hint.
         let base_branch = resolved.base_branch.clone();
-        // The current branch for the tree's bottom-border title: queried once here from
-        // the resolved repo root (never per-frame), `None` outside a repo / on detached HEAD.
-        let current_branch = resolved
-            .repo_root
-            .as_deref()
-            .and_then(crate::git::current_branch);
+        // Branch/status discovery is intentionally deferred until after construction so
+        // startup can paint immediately instead of waiting for multiple git subprocesses.
+        let current_branch = None;
         // The Content Renderer (and the diff query it needs) live on a worker thread; the
         // controller talks to it over a job channel and reads finished renders off a result
         // channel (AC-23). The worker exits when the job sender (held by the controller) is
@@ -1116,7 +1117,10 @@ impl Controller {
         // letting it climb into an unrelated enclosing directory/repository (see
         // `index::walk_builder`); a no-op (stays `false`) outside a repo.
         ctrl.tree.set_is_git_repo(is_git_repo);
-        ctrl.refresh_git_state();
+        // Match the re-root fast path: Git status, changed-set and branch discovery are not
+        // prerequisites for the first frame. They land through poll() and trigger the mode-aware
+        // re-render once available.
+        ctrl.dispatch_status_refresh();
         ctrl.dispatch_render();
         ctrl
     }
@@ -1264,13 +1268,9 @@ impl Controller {
         self.tree = TreeModel::new(resolved.root.clone());
         self.tree.set_is_git_repo(self.is_git_repo);
         self.tree.set_compact_dirs(self.compact_dirs); // a carried session preference (AC-12)
-        // Recompute the cached branch for the new root's bottom-border title. Cheap and
-        // synchronous: a single `git rev-parse` against the already-resolved repo root, done once
-        // per re-root (not per-frame). `None` when the new root is outside a repo / detached.
-        self.current_branch = resolved
-            .repo_root
-            .as_deref()
-            .and_then(crate::git::current_branch);
+        // The async status refresh below also resolves the branch. Clear the old root's
+        // label immediately rather than blocking this switch on another git subprocess.
+        self.current_branch = None;
 
         // Reset navigation/view state (AC-13). The picker is closed on a switch (AC-13 "picker
         // is closed"); `herdr`/`our_workspace_id` are session-level and deliberately left intact.
@@ -1346,6 +1346,7 @@ impl Controller {
         }
         let git = Arc::clone(&self.git);
         let baseline = self.baseline;
+        let root = self.root.clone();
         let (tx, rx) = mpsc::channel();
         std::thread::spawn(move || {
             // Contain a git-query panic so the thread can't abort the process — parity with the
@@ -1355,7 +1356,8 @@ impl Controller {
             let computed = std::panic::catch_unwind(AssertUnwindSafe(|| {
                 let status = git.status();
                 let changed = git.changed_set(baseline);
-                (status, changed)
+                let branch = crate::git::current_branch(&root);
+                (status, changed, branch)
             }));
             if let Ok(result) = computed {
                 let _ = tx.send(result); // receiver may be gone if re-rooted again — fine
@@ -3697,8 +3699,9 @@ impl Controller {
         // fetch (its `send` failed) — drop the receiver so we stop polling a dead channel.
         if let Some(rx) = &self.status_rx {
             match rx.try_recv() {
-                Ok((status, changed)) => {
+                Ok((status, changed, branch)) => {
                     self.apply_git_state(&status, changed);
+                    self.current_branch = branch;
                     self.status_rx = None;
                     // The synchronous `re_root` dispatched the first render against the *empty*
                     // changed-set, so a changed file rendered in content/markdown mode, not Diff.
