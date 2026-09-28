@@ -220,13 +220,22 @@ pub fn run(open_flag: Option<String>) -> io::Result<()> {
     // mouse-reporting mode.
     let prev_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        let _ = execute!(io::stdout(), DisableMouseCapture);
-        let _ = execute!(io::stdout(), DisableFocusChange);
+        let _ = execute!(
+            io::stdout(),
+            DisableMouseCapture,
+            DisableFocusChange
+        );
         prev_hook(info);
     }));
     let outcome = event_loop(&mut terminal, &mut controller);
-    let _ = execute!(io::stdout(), DisableMouseCapture);
-    let _ = execute!(io::stdout(), DisableFocusChange);
+    // One terminal write/flush for the viewer-specific modes before ratatui restores raw mode and
+    // the alternate screen. On Windows the focus command is effectively free, while combining the
+    // pair avoids an extra stdout synchronization on every normal exit.
+    let _ = execute!(
+        io::stdout(),
+        DisableMouseCapture,
+        DisableFocusChange
+    );
     ratatui::try_restore()?;
     outcome
 }
