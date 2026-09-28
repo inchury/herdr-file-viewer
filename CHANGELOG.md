@@ -13,7 +13,7 @@ All notable changes to this project are documented here. The format is based on
 - Native Windows targeted opens now work through the shipped PowerShell split/tab launchers: `-OpenTarget path[:line]` is forwarded to a fresh viewer pane instead of requiring WSL or silently focusing an existing viewer that cannot consume the target. → [Windows](docs/windows.md) · [usage](docs/usage.md#open-at-a-known-file)
 
 ### Added
-- `[MD]` file preview is now rendered natively in the plugin, so Markdown no longer falls back to plain text when `glow` is absent. The built-in renderer covers headings, block quotes, lists/tasks, fenced code, thematic rules, and table structure without a new crate/runtime dependency.
+- `[MD]` file preview now uses `pulldown-cmark` for CommonMark/GFM parsing and native Ratatui rendering (including inline emphasis and real table layout), so Markdown no longer falls back to plain text when `glow` is absent. The built-in renderer covers headings, block quotes, lists/tasks, fenced code, thematic rules, and table structure without a new crate/runtime dependency.
 - Native Windows now ships `scripts/install-renderers.ps1`, a best-effort WinGet installer for `glow`, `delta`, and `bat` with Cargo fallback for the Rust renderers. → [renderers](docs/renderers.md) · [Windows](docs/windows.md)
 
 ### Changed
