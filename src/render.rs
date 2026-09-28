@@ -996,7 +996,7 @@ mod tests {
     #[test]
     fn markdown_file_preview_is_native_and_does_not_need_glow() {
         let renderers = Renderers { markdown: vec!["renderer-that-must-not-exist".into()], diff: vec![], full_diff: vec![], syntax: vec![], timeout: Duration::from_secs(1) };
-        let prepared = Prepared::Full { text: "# Title\n\n> quote\n\n- item\n- [x] done".into() };
+        let prepared = Prepared::Full { text: "# Title\n\nNormal **bold** and *italic* with \`code\`.\n\n> quote\n\n- item\n- [x] done\n\n| Name | Status |\n| --- | --- |\n| **Parser** | Ready |".into() };
         let (text, notice) = render(&renderers, &prepared, ViewMode::RenderedMarkdown, None, Some("README.md"), Caps::default());
         assert_eq!(notice, None);
         let flat = text.lines.iter().flat_map(|line| line.spans.iter()).map(|span| span.content.as_ref()).collect::<Vec<_>>().join("\n");
@@ -1005,6 +1005,14 @@ mod tests {
         assert!(flat.contains("│ "));
         assert!(flat.contains("• "));
         assert!(flat.contains("☑ "));
+        assert!(flat.contains("┌"));
+        assert!(flat.contains("Parser"));
+        let bold = text.lines.iter().flat_map(|line| line.spans.iter()).find(|span| span.content.as_ref() == "bold").expect("bold span");
+        assert!(bold.style.add_modifier.contains(Modifier::BOLD));
+        let italic = text.lines.iter().flat_map(|line| line.spans.iter()).find(|span| span.content.as_ref() == "italic").expect("italic span");
+        assert!(italic.style.add_modifier.contains(Modifier::ITALIC));
+        let parser = text.lines.iter().flat_map(|line| line.spans.iter()).find(|span| span.content.as_ref() == "Parser").expect("table cell");
+        assert!(parser.style.add_modifier.contains(Modifier::BOLD));
     }
 
     #[test]
