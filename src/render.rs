@@ -371,13 +371,13 @@ impl MarkdownWriter {
             MdEvent::Text(text) => {
                 self.prefix_block();
                 if self.in_code_block {
-                    let text = text.into_string();
+                    let text = text.to_string();
                     for (i, line) in text.split('\n').enumerate() {
                         if i > 0 { self.flush_line(); }
                         if !line.is_empty() { self.push_text(line.to_owned(), Style::new()); }
                     }
                 } else {
-                    self.push_text(text.into_string(), Style::new());
+                    self.push_text(text.to_string(), Style::new());
                 }
             }
             MdEvent::Code(code) => { self.prefix_block(); self.push_text(format!(" {} ", code), Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)); }
@@ -387,8 +387,8 @@ impl MarkdownWriter {
             MdEvent::TaskListMarker(checked) => self.push_text(if checked { "☑ " } else { "☐ " }, Style::new().fg(Color::Cyan)),
             MdEvent::FootnoteReference(label) => self.push_text(format!("[{label}]"), Style::new().fg(Color::Cyan)),
             MdEvent::InlineMath(math) => self.push_text(format!("${math}$"), Style::new().fg(Color::Cyan)),
-            MdEvent::DisplayMath(math) => { self.flush_line(); self.lines.push(Line::from(Span::styled(math.into_string(), Style::new().fg(Color::Cyan)))); }
-            MdEvent::Html(html) | MdEvent::InlineHtml(html) => self.push_text(html.into_string(), Style::new().fg(Color::DarkGray)),
+            MdEvent::DisplayMath(math) => { self.flush_line(); self.lines.push(Line::from(Span::styled(math.to_string(), Style::new().fg(Color::Cyan)))); }
+            MdEvent::Html(html) | MdEvent::InlineHtml(html) => self.push_text(html.to_string(), Style::new().fg(Color::DarkGray)),
         }
     }
     fn start(&mut self, tag: MdTag<'_>) {
@@ -422,7 +422,7 @@ impl MarkdownWriter {
             MdTag::TableHead => { if let Some(table) = self.table.as_mut() { table.in_head = true; } }
             MdTag::Image { dest_url, .. } => {
                 self.push_text("image: ", Style::new().fg(Color::DarkGray));
-                self.push_text(dest_url.into_string(), Style::new().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED));
+                self.push_text(dest_url.to_string(), Style::new().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED));
             }
             _ => {}
         }
