@@ -1263,13 +1263,10 @@ fn active_preview_metadata_shows_relative_path_and_mode_without_changing_default
 fn active_preview_path_uses_middle_ellipsis_when_the_repo_relative_path_is_long() {
     let mut state = sample_state();
     state.active.notices.clear();
-    state.active.display_path = Some(format!(
-        "src/{}/VeryLongName.rs",
-        "deep-segment/".repeat(8)
-    ));
+    state.active.display_path = Some(format!("src/{}/VeryLongName.rs", "deep-segment/".repeat(8)));
     state.active.view_mode = Some(ViewMode::SyntaxContent);
 
-    let out = render(&state, 70, 10);
+    let out = render(&state, 100, 10);
     assert!(out.contains('…'), "long path is truncated\n{out}");
     assert!(out.contains("src/"), "leading path context survives\n{out}");
     assert!(
@@ -3506,7 +3503,7 @@ fn help_state() -> ViewState {
             "Herdr File Viewer\n\
              A git-aware, read-only file viewer\n\
              \n\
-             github.com/smarzban/herdr-file-viewer\n\
+             github.com/inchury/herdr-file-viewer\n\
              \n\
              v1.13.0 · Up to date\n\
              MIT License\n\
@@ -3556,7 +3553,7 @@ fn help_whats_new_body_preserves_the_controllers_composed_document_order() {
             "SPOTLIGHT-FIRST\n\n\
              DETAILS-SECOND\n\
              To install this update, run:\n\n\
-                 herdr plugin install smarzban/herdr-file-viewer\n\n\
+                 herdr plugin install inchury/herdr-file-viewer\n\n\
              EMBEDDED-THIRD",
         ),
         scroll: 0,
@@ -3573,7 +3570,7 @@ fn help_whats_new_body_preserves_the_controllers_composed_document_order() {
         "the Help body stays in controller-composed order:\n{output}"
     );
     assert!(
-        output.contains("herdr plugin install smarzban/herdr-file-viewer"),
+        output.contains("herdr plugin install inchury/herdr-file-viewer"),
         "the fixed install command is displayed as body text:\n{output}"
     );
 }
@@ -4668,7 +4665,7 @@ fn quit_confirm_lists_what_would_be_lost_and_every_way_out() {
     });
     let out = render(&state, 100, 16);
 
-    assert!(out.contains("Discard annotations?"), "title\n{out}");
+    assert!(out.contains("Exit file viewer?"), "title\n{out}");
     assert!(
         out.contains("3 annotations will be lost:"),
         "the count is named\n{out}"

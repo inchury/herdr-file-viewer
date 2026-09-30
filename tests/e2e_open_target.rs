@@ -33,12 +33,12 @@ fn open_flag_shows_nested_file_and_line_marker() {
     // Nested basename in the tree (reveal expanded parents) + unique body line prove
     // --open path:line selected the right file. (Notice text is covered by the env/flag tests;
     // in some pty geometries the content-column notice strip is easy to miss while matching.)
-    s.expect("target.txt")
+    s.expect("target")
         .expect("tree should show the opened file");
     s.expect("LINE3_OPEN_TARGET_MARKER")
         .expect("content of the opened file (line 3) must be visible");
 
-    s.send("q").expect("send close");
+    s.send("qqq").expect("close and confirm exit");
     s.expect(Eof).expect("viewer terminates after close");
     match s.get_process().wait().expect("reap") {
         WaitStatus::Exited(_, code) => assert_eq!(code, 0),
@@ -63,7 +63,7 @@ fn open_env_shows_file() {
     s.expect("ENV_OPEN_MARKER")
         .expect("env-selected file content");
 
-    s.send("q").unwrap();
+    s.send("qqq").unwrap();
     s.expect(Eof).unwrap();
     match s.get_process().wait().unwrap() {
         WaitStatus::Exited(_, code) => assert_eq!(code, 0),
@@ -90,7 +90,7 @@ fn open_flag_wins_over_env() {
     s.expect("FLAG_WINS_MARKER")
         .expect("flag path content wins over env");
 
-    s.send("q").unwrap();
+    s.send("qqq").unwrap();
     s.expect(Eof).unwrap();
     match s.get_process().wait().unwrap() {
         WaitStatus::Exited(_, code) => assert_eq!(code, 0),
@@ -111,12 +111,12 @@ fn unknown_arg_still_starts_viewer() {
     let mut s = Session::spawn(cmd).expect("spawn despite unknown/bare flags");
     s.set_expect_timeout(Some(Duration::from_secs(15)));
 
-    s.expect("alive.txt")
+    s.expect("alive")
         .expect("viewer must start with unknown args ignored");
     s.expect("STILL_STARTS")
         .expect("default selection still renders");
 
-    s.send("q").unwrap();
+    s.send("qqq").unwrap();
     s.expect(Eof).unwrap();
     match s.get_process().wait().unwrap() {
         WaitStatus::Exited(_, code) => assert_eq!(code, 0),

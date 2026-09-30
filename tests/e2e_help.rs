@@ -134,6 +134,8 @@ fn help_overlay_consumes_nav_keys_and_esc_returns() {
 
     // Clean exit — no overlay key crashed the run loop (AC-20).
     s.send("q").expect("send close");
+    s.expect("Exit file viewer?").expect("exit confirms");
+    s.send("q").expect("confirm exit");
     s.expect(Eof)
         .expect("the viewer terminates cleanly after the help-overlay flow");
     match s.get_process().wait().expect("reap the viewer") {

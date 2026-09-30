@@ -71,7 +71,7 @@ compact_dirs = false        # true to draw a chain of single-child dirs as ONE r
 changed_file_view = "diff"  # changed non-Markdown starts in diff; Markdown always opens rendered
 baseline = "base"           # force startup diff baseline: "base" or "head" (omit for context-smart default)
 update_check = true         # false disables all remote requests and their display
-confirm_discard = true      # false to discard annotations without confirming (on quit / worktree switch)
+confirm_discard = true      # false to skip annotation confirmation when switching worktrees
 scroll_lines = 3            # mouse-wheel step (content/search/help), a 1 to 10 scale: 1 slow · 3 medium · 6 fast · 10 max
 tree_width = 30             # tree column's share of the viewer pane, percent 20-80 (content takes the rest)
 tree_max_cols = 30          # HARD CAP in columns; the SMALLER of this and tree_width% wins (raise both to widen)
@@ -155,12 +155,10 @@ always did — but the *span* of a folded row can lag. If a file created outside
 ends a chain, the row keeps its old span until the viewer re-checks, which it does on launch, `r`,
 returning from the editor, switching baseline, and regaining focus.
 
-`confirm_discard` guards the one piece of state the viewer can lose. Annotations (`a` / `A`) are
-session-only, so both quitting (`q`) and switching worktree (`W`) discard them. By default either
-raises a confirm listing what would be lost: `y` copies them to the clipboard and continues, the
-action's own key continues and discards (`q` to quit, `Enter` to switch), and `Esc` cancels. Set it
-to `false` to skip the confirm and discard immediately. It only appears when annotations are
-actually held, so leaving it on costs nothing in a session that never uses them. See
+`confirm_discard` guards annotations when switching worktrees (`W`). By default, a switch with
+annotations held raises a confirm: `y` copies them and switches, `Enter` switches and discards,
+and `Esc` cancels. Set it to `false` to switch and discard immediately. Exiting (`q`) always
+raises its own confirmation, even with no annotations held. See
 [annotating files and ranges](usage.md#annotating-files-and-ranges).
 
 ## Command values

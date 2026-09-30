@@ -136,8 +136,7 @@ pub fn run(open_flag: Option<String>) -> io::Result<()> {
     // Apply the config-driven tree shape (`compact_dirs`): fold a chain of single-child
     // directories into one row. A startup setting — there is no runtime toggle for it.
     controller.apply_compact_dirs(eff.compact_dirs);
-    // Apply the config-driven quit guard (`confirm_discard`): whether quitting with
-    // session annotations held confirms first or discards them immediately.
+    // Apply the config-driven worktree-switch guard (`confirm_discard`); exiting always confirms.
     controller.apply_confirm_discard(eff.confirm_discard);
     // Apply the config-driven mouse-wheel scroll step (`scroll_lines`); already clamped to >= 1 by
     // the resolver, so the wheel always advances at least one line/item.
@@ -220,22 +219,14 @@ pub fn run(open_flag: Option<String>) -> io::Result<()> {
     // mouse-reporting mode.
     let prev_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        let _ = execute!(
-            io::stdout(),
-            DisableMouseCapture,
-            DisableFocusChange
-        );
+        let _ = execute!(io::stdout(), DisableMouseCapture, DisableFocusChange);
         prev_hook(info);
     }));
     let outcome = event_loop(&mut terminal, &mut controller);
     // One terminal write/flush for the viewer-specific modes before ratatui restores raw mode and
     // the alternate screen. On Windows the focus command is effectively free, while combining the
     // pair avoids an extra stdout synchronization on every normal exit.
-    let _ = execute!(
-        io::stdout(),
-        DisableMouseCapture,
-        DisableFocusChange
-    );
+    let _ = execute!(io::stdout(), DisableMouseCapture, DisableFocusChange);
     ratatui::try_restore()?;
     outcome
 }
@@ -1480,9 +1471,8 @@ mod tests {
         );
     }
 
-    /// A `LiveContent` whose markdown delegate echoes back the `-w` value it was actually invoked
-    /// with (as `W=<n>`), so a test can prove the pane width was threaded into glow's `-w`. The
-    /// base `-w` is `0` (matching the real default), so an unknown/zero width reads back `W=0`.
+    /// A `LiveContent` with a markdown delegate that would emit `W=<n>` if invoked. Native
+    /// markdown preview must render the file instead, even when a delegate is configured.
     #[cfg(unix)]
     fn echoing_md_content(root: &Path) -> LiveContent {
         LiveContent {
@@ -1559,42 +1549,44 @@ mod tests {
             .collect()
     }
 
-    /// The table fix: rendered markdown at a known pane width hands glow `-w <width>` so it lays
-    /// out (and wraps) tables to fit the pane, instead of overflowing at natural `-w 0` width and
-    /// being shattered by the Presenter's re-wrap.
+    /// The live renderer passes the measured pane width into native Markdown table layout.
     #[cfg(unix)]
     #[test]
-    fn render_at_width_points_markdown_wrap_at_the_pane_width() {
+    fn render_at_width_limits_native_markdown_table_to_the_pane_width() {
         let root = tmp("md-wrap-width");
         let md = root.join("doc.md");
-        std::fs::write(&md, "| a | b |\n|---|---|\n| 1 | 2 |\n").unwrap();
+        std::fs::write(
+            &md,
+            "| a | b |\n|---|---|\n| 1 | a long cell that must wrap within the measured pane |\n",
+        )
+        .unwrap();
         let content = echoing_md_content(&root);
         let out = content.render_at_width(
             &md,
             ViewMode::RenderedMarkdown,
             None,
-            Some(80),
+            Some(24),
             None,
             DiffRenderMode::default(),
         );
         assert!(
-            flatten_content(&out).contains("W=80"),
-            "the pane width must reach glow's -w: {:?}",
+            out.content.lines.iter().all(|line| line.width() <= 24),
+            "the native table must fit the pane: {:?}",
             flatten_content(&out)
         );
+        assert!(flatten_content(&out).contains('┌'));
+        assert!(!flatten_content(&out).contains("W=24"));
     }
 
-    /// No width known yet (the first render, before the first draw has measured the pane) — glow
-    /// keeps its `-w 0` (no wrap). The width-less `render` entry point delegates to the same path
-    /// with `None`, so it too leaves `-w 0`.
+    /// Before the first pane measurement, native Markdown still renders without a delegate.
     #[cfg(unix)]
     #[test]
-    fn render_at_width_leaves_wrap_unbounded_without_a_pane_width() {
+    fn render_at_width_uses_native_markdown_without_a_pane_width() {
         let root = tmp("md-wrap-none");
         let md = root.join("doc.md");
         std::fs::write(&md, "# Title\n").unwrap();
         let content = echoing_md_content(&root);
-        // Explicit None, an inert zero width, and the width-less `render` all keep the base `-w 0`.
+        // Explicit None, an inert zero width, and the width-less entry point all use native Markdown.
         for w in [None, Some(0)] {
             let out = content.render_at_width(
                 &md,
@@ -1605,15 +1597,16 @@ mod tests {
                 DiffRenderMode::default(),
             );
             assert!(
-                flatten_content(&out).contains("W=0"),
-                "width {w:?} must leave -w at 0: {:?}",
+                flatten_content(&out).contains("Title") && !flatten_content(&out).contains("W=0"),
+                "width {w:?} must use native Markdown: {:?}",
                 flatten_content(&out)
             );
         }
         let via_render = content.render(&md, ViewMode::RenderedMarkdown, None);
         assert!(
-            flatten_content(&via_render).contains("W=0"),
-            "the width-less render() must keep -w 0: {:?}",
+            flatten_content(&via_render).contains("Title")
+                && !flatten_content(&via_render).contains("W=0"),
+            "the width-less render() must use native Markdown: {:?}",
             flatten_content(&via_render)
         );
     }

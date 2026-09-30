@@ -757,9 +757,8 @@ pub struct Controller {
     baseline: Baseline,
     show_ignored: bool,
     hide_hidden: bool,
-    /// Whether quitting with annotations held raises the discard confirm (config
-    /// `confirm_discard`, default `true`). When `false`, `q` quits and discards, which
-    /// is the pre-confirm behavior.
+    /// Whether switching worktrees with annotations held raises the discard confirm (config
+    /// `confirm_discard`, default `true`). Exiting always requires explicit confirmation.
     confirm_discard: bool,
     /// Whether a chain of single-child directories is drawn as one row (config `compact_dirs`,
     /// default `false`). A session preference carried across a re-root (like `show_ignored` /
@@ -1967,9 +1966,10 @@ impl Controller {
                     dim: f.dim,
                 }),
                 title: self.active_display.title(),
-                display_path: self.active_display.displayed_origin().map(|origin| {
-                    origin.root_relative_path().to_string_lossy().into_owned()
-                }),
+                display_path: self
+                    .active_display
+                    .displayed_origin()
+                    .map(|origin| origin.root_relative_path().to_string_lossy().into_owned()),
                 view_mode: self
                     .active_display
                     .presentation()
@@ -3691,14 +3691,24 @@ impl Controller {
         if let Some(rx) = &self.status_rx {
             match rx.try_recv() {
                 Ok((status, changed, branch)) => {
+                    let selected_before = self
+                        .tree
+                        .selected()
+                        .filter(|node| node.kind == NodeKind::File)
+                        .map(|node| node.path.clone());
                     self.apply_git_state(&status, changed);
                     self.current_branch = branch;
                     self.status_rx = None;
-                    // The synchronous `re_root` dispatched the first render against the *empty*
-                    // changed-set, so a changed file rendered in content/markdown mode, not Diff.
-                    // Now that the real changed-set has landed, re-dispatch so the current
-                    // selection re-renders in the correct view mode (changed → Diff, AC-9).
-                    self.dispatch_render();
+                    // The view mode may change when Git status arrives. Re-render the same file
+                    // without resetting its scroll/search; only a selection change starts fresh.
+                    if let Some(path) = selected_before
+                        .filter(|path| self.tree.selected().is_some_and(|node| node.path == *path))
+                    {
+                        let mode = self.effective_mode(&path);
+                        self.dispatch_reflow(path, mode);
+                    } else {
+                        self.dispatch_render();
+                    }
                     applied = true;
                 }
                 Err(mpsc::TryRecvError::Disconnected) => self.status_rx = None,
@@ -4098,7 +4108,13 @@ mod tests {
             clipboard: Box::new(StubClipboard),
             renderers: None,
         };
-        Controller::new(resolved, Baseline::Head, components)
+        let mut ctrl = Controller::new(resolved, Baseline::Head, components);
+        if is_git_repo {
+            // Initial git discovery is asynchronous; make the changed state observable before
+            // exercising the diff controls.
+            ctrl.changed = ctrl.git.changed_set(Baseline::Head);
+        }
+        ctrl
     }
 
     /// Controller over a temp tree with `src/deep/file.rs` for open-target apply tests.

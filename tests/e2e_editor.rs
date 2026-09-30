@@ -51,7 +51,7 @@ fn open_in_editor_invokes_the_editor_on_the_selected_file_without_modifying_it()
     let mut s = Session::spawn(cmd).expect("spawn the viewer in a pty");
     s.set_expect_timeout(Some(Duration::from_secs(15)));
 
-    s.expect("edit.txt").expect("tree should list the file");
+    s.expect("edit").expect("tree should list the file");
 
     // The selected file (cursor 0) is edit.txt; hand it off to the editor.
     s.send("e").expect("send open-in-editor");
@@ -90,6 +90,8 @@ fn open_in_editor_invokes_the_editor_on_the_selected_file_without_modifying_it()
     // stable screen content to `expect` for, so a short sleep stays in place of a poll.
     std::thread::sleep(Duration::from_millis(150));
     s.send("q").expect("send close");
+    s.expect("Exit file viewer?").expect("exit confirms");
+    s.send("q").expect("confirm exit");
     s.expect(Eof)
         .expect("the viewer terminates after the close key");
     match s.get_process().wait().expect("reap the viewer") {
@@ -112,11 +114,13 @@ fn a_missing_editor_is_a_non_fatal_notice_not_a_crash() {
     let mut s = Session::spawn(cmd).expect("spawn the viewer in a pty");
     s.set_expect_timeout(Some(Duration::from_secs(15)));
 
-    s.expect("edit.txt").expect("tree should list the file");
+    s.expect("edit").expect("tree should list the file");
     s.send("e")
         .expect("send open-in-editor with no editor configured");
     // The file must still be intact, and the viewer must still close cleanly.
     s.send("q").expect("send close");
+    s.expect("Exit file viewer?").expect("exit confirms");
+    s.send("q").expect("confirm exit");
     s.expect(Eof)
         .expect("viewer terminates after a failed hand-off + close");
     assert_eq!(

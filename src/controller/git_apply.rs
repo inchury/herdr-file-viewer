@@ -10,6 +10,9 @@ impl Controller {
     /// Git index / filesystem / antivirus path cannot stall keyboard and mouse handling.
     /// `poll()` applies the result and re-renders once it arrives.
     pub fn handle_focus_gained(&mut self) -> Effects {
+        // Fold-shape invalidation is cheap and also needed outside Git repositories. Refreshing
+        // Git state remains off-thread so this input event never waits on Git or the filesystem.
+        self.tree.invalidate_compaction();
         self.dispatch_status_refresh();
         Effects::redraw()
     }

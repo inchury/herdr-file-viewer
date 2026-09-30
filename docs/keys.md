@@ -49,7 +49,7 @@ is additive and on by default.
 | `W` (Shift+`w`) | **Switch worktree**: open a picker of the repo's git worktrees and re-root the viewer to the one you pick (read-only; no branch checkout). Marks the current worktree and pre-selects the one with an active herdr agent; `↑`/`↓` move, `←`/`→` scroll long paths, `Enter` switches, `Esc` cancels. A switch clears annotations (their targets belong to the old root), so with any held it confirms first (`y` copies them and switches, `Enter` switches and discards, `Esc` cancels) |
 | `?` (Shift+`/`) | Open help with **What's New** details selected first, including updates and spotlights; `Esc` / `q` closes it |
 | `u` | Dismiss the whole advisory status row for this session only; **What's New** stays available |
-| `q` / `Esc` | Back out of zoom if zoomed; otherwise close the viewer and return to the prior pane. With annotations held, a confirm appears first (`y` copies them and quits, `q` quits and discards, `Esc` returns to the viewer): they are session-only, so quitting destroys them. Skip it with `confirm_discard = false` |
+| `q` / `Esc` | Back out of zoom if zoomed; otherwise open an exit confirmation. Press `q` to quit, `Esc` to return, or `y` to copy held annotations and quit. Exit confirmation appears even when no annotations are held |
 
 These are the **default global** keys. Remap them with a `[keys]` table in the
 [config file](configuration.md#keybindings). Keys handled inside line-select mode, the annotation

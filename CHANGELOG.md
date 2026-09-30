@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-30
+
 ### Fixed
 - Compact `[DIFF]` rendering no longer depends on delta/ANSI round-tripping: unified diffs are styled directly in ratatui, with additions green, deletions red, hunk headers cyan, and terminal controls neutralized. `[DIFF+]` keeps the richer delta-based full-file view.
 - Changed Markdown files such as `CHANGELOG.md` and `README.md` now open in rendered `[MD]` view instead of `[DIFF]`. Diff and full-diff remain available through `v`, avoiding the slow/partial-document experience of using changed hunks as the default document view. → [usage](docs/usage.md#viewing-a-file)
@@ -17,6 +19,7 @@ All notable changes to this project are documented here. The format is based on
 - Native Windows now ships `scripts/install-renderers.ps1`, a best-effort WinGet installer for `glow`, `delta`, and `bat` with Cargo fallback for the Rust renderers. → [renderers](docs/renderers.md) · [Windows](docs/windows.md)
 
 ### Changed
+- Closing the viewer now opens an explicit exit confirmation, including when no annotations are held; `confirm_discard = false` still skips the worktree-switch discard prompt.
 - The active content pane's bottom key hint now exposes the common controls directly and adapts to available width: navigation, tree expand/collapse, open, `v` view switching, search, `Esc` close, and `?` help.
 - Explorer tree hierarchy is easier to scan: directories and Git status markers use bold weight, ordinary files remain normal-weight, and final file extensions are dimmed as a lightweight type cue — all with no Nerd Font dependency. → [usage](docs/usage.md#the-tree)
 - The content pane now identifies both **where** and **how** a file is being viewed: its top border uses the repo-relative path and its bottom border shows `[MD]`, `[DIFF]`, `[DIFF+]`, or `[CODE]`. → [usage](docs/usage.md#viewing-a-file)

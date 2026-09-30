@@ -547,7 +547,10 @@ fn tree_row(node: &Node, selected: bool, annotated: bool) -> Line<'static> {
         // extension (including the dot) is DIM. Hidden files such as `.env` are left whole rather
         // than turning the entire name into an "extension". Git foreground colors and selection
         // modifiers stay on both spans.
-        match name.rfind('.').filter(|&cut| cut > 0 && cut + 1 < name.len()) {
+        match name
+            .rfind('.')
+            .filter(|&cut| cut > 0 && cut + 1 < name.len())
+        {
             Some(cut) => {
                 let (stem, extension) = name.split_at(cut);
                 spans.push(Span::styled(stem.to_string(), name_style));
@@ -1169,8 +1172,6 @@ fn draw_content(
     }
     // Persistent bottom-border chips: view mode + annotation count on the left (when they fit),
     // help on the right. They ride the border rather than consuming a content row.
-    let hint_text = sanitize_control(key_hint_for_width(area.width));
-    let hint = Line::styled(hint_text.clone(), Style::new().fg(Color::Reset)).right_aligned();
     let annotation_chip = (active && state.annotation_count > 0)
         .then(|| sanitize_control(&format!("annotations: {}", state.annotation_count)));
     let status_line = {
@@ -1189,6 +1190,25 @@ fn draw_content(
         }
         (!spans.is_empty()).then(|| Line::from(spans))
     };
+    // Keep the mode and annotation count visible by shortening the hint to the space left
+    // beside them. On very narrow panes, keep the help affordance and omit the status line.
+    let hint_text = if active {
+        status_line
+            .as_ref()
+            .and_then(|line| {
+                [HELP_HINT, HELP_HINT_MEDIUM, HELP_HINT_NARROW, "? help"]
+                    .into_iter()
+                    .find(|hint| {
+                        line.width() + 1 + Line::from(*hint).width()
+                            <= area.width.saturating_sub(2) as usize
+                    })
+            })
+            .unwrap_or_else(|| key_hint_for_width(area.width))
+    } else {
+        ""
+    };
+    let hint_text = sanitize_control(hint_text);
+    let hint = Line::styled(hint_text.clone(), Style::new().fg(Color::Reset)).right_aligned();
     let hint_width = if active {
         Line::from(hint_text.as_str()).width()
     } else {
@@ -2051,7 +2071,8 @@ const HELP_TITLE: &str = "Help";
 /// right-aligned one-segment affordance that `?` opens help, visible on the default screen
 /// without opening any modal. Static (first-party), so no sanitization is needed
 /// beyond the defense-in-depth `sanitize_control` applied at the call site (AC-27).
-const HELP_HINT: &str = "↑↓ navigate · ←→ tree · Enter open · v view · / search · Esc close · ? help";
+const HELP_HINT: &str =
+    "↑↓ navigate · ←→ tree · Enter open · v view · / search · Esc close · ? help";
 const HELP_HINT_MEDIUM: &str = "↑↓ navigate · Enter open · v view · Esc close · ? help";
 const HELP_HINT_NARROW: &str = "↑↓ nav · v view · Esc close · ? help";
 

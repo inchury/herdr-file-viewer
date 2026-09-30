@@ -171,7 +171,7 @@ fn cached_remote_notices_render_without_external_effects_or_workspace_mutation()
     session.set_expect_timeout(Some(Duration::from_secs(15)));
 
     session
-        .expect("notice.txt")
+        .expect("notice")
         .expect("viewer renders its workspace");
     session.send("?").expect("open What's New");
     session
@@ -206,6 +206,8 @@ fn cached_remote_notices_render_without_external_effects_or_workspace_mutation()
         .send("u")
         .expect("dismiss the visible remote notice from the normal viewer");
     session.send("q").expect("close viewer");
+    session.expect("Exit file viewer?").expect("exit confirms");
+    session.send("q").expect("confirm exit");
     session.expect(Eof).expect("viewer exits cleanly");
     match session.get_process().wait().expect("reap viewer") {
         WaitStatus::Exited(_, code) => assert_eq!(code, 0, "clean exit after notice flow"),

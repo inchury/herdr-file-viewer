@@ -199,11 +199,23 @@ fn ctrl_with_git_and_content<P: ContentProvider + Clone + 'static>(
         clipboard: Box::new(common::RecordingClipboard::default()),
         renderers: None,
     };
-    Controller::new(
+    let mut ctrl = Controller::new(
         common::resolved(root.to_path_buf(), true), // is_git_repo = true
         Baseline::Head,
         components,
-    )
+    );
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while ctrl.status_refresh_pending()
+        || ctrl.view_state().active.view_mode != Some(ViewMode::Diff)
+    {
+        ctrl.poll();
+        assert!(
+            Instant::now() < deadline,
+            "changed-file diff never rendered"
+        );
+        std::thread::yield_now();
+    }
+    ctrl
 }
 
 // ── AC-13: search in every view mode ─────────────────────────────────────────

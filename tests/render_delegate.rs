@@ -155,7 +155,7 @@ fn syntax_mode_invokes_the_syntax_renderer_and_ingests_output() {
 }
 
 #[test]
-fn markdown_mode_invokes_the_markdown_renderer() {
+fn markdown_mode_renders_natively() {
     let prepared = Prepared::Full {
         text: "# Title".into(),
     };
@@ -167,7 +167,11 @@ fn markdown_mode_invokes_the_markdown_renderer() {
         None,
         Caps::default(),
     );
-    assert!(flatten(&text).contains("# Title"), "AC-8");
+    assert!(flatten(&text).contains("Title"), "AC-8");
+    assert!(
+        !flatten(&text).contains("# Title"),
+        "heading syntax is rendered"
+    );
 }
 
 #[test]
@@ -190,7 +194,9 @@ fn diff_mode_renders_the_supplied_raw_diff() {
 fn compact_diff_uses_native_semantic_colors() {
     use ratatui::style::{Color, Modifier};
 
-    let prepared = Prepared::Full { text: "ignored".into() };
+    let prepared = Prepared::Full {
+        text: "ignored".into(),
+    };
     let raw = "diff --git a/a.rs b/a.rs\n--- a/a.rs\n+++ b/a.rs\n@@ -1 +1 @@\n-old\n+new";
     let (text, notice) = render(
         &cat(),
@@ -205,7 +211,11 @@ fn compact_diff_uses_native_semantic_colors() {
     let style_for = |prefix: &str| {
         text.lines
             .iter()
-            .find(|line| line.spans.first().is_some_and(|s| s.content.starts_with(prefix)))
+            .find(|line| {
+                line.spans
+                    .first()
+                    .is_some_and(|s| s.content.starts_with(prefix))
+            })
             .and_then(|line| line.spans.first())
             .map(|span| span.style)
             .expect("expected diff line")
@@ -218,7 +228,9 @@ fn compact_diff_uses_native_semantic_colors() {
 
 #[test]
 fn compact_diff_neutralizes_terminal_controls_without_losing_markers() {
-    let prepared = Prepared::Full { text: "ignored".into() };
+    let prepared = Prepared::Full {
+        text: "ignored".into(),
+    };
     let raw = "+safe\x1b[2Jtext\n-removed";
     let (text, _) = render(
         &cat(),
@@ -278,10 +290,10 @@ fn diff_mode_renders_even_for_a_binary_or_deleted_file() {
 #[test]
 fn missing_renderer_falls_back_to_plain_text_with_a_notice() {
     let renderers = Renderers {
-        markdown: vec!["herdr-no-such-binary-xyz".into()],
+        markdown: vec!["cat".into()],
         diff: vec!["cat".into()],
         full_diff: vec!["cat".into()],
-        syntax: vec!["cat".into()],
+        syntax: vec!["herdr-no-such-binary-xyz".into()],
         timeout: Duration::from_secs(5),
     };
     let prepared = Prepared::Full {
@@ -290,7 +302,7 @@ fn missing_renderer_falls_back_to_plain_text_with_a_notice() {
     let (text, notice) = render(
         &renderers,
         &prepared,
-        ViewMode::RenderedMarkdown,
+        ViewMode::SyntaxContent,
         None,
         None,
         Caps::default(),
@@ -301,7 +313,7 @@ fn missing_renderer_falls_back_to_plain_text_with_a_notice() {
     );
     let notice = notice.expect("AC-25: a non-fatal fallback notice");
     assert!(
-        notice.to_lowercase().contains("markdown"),
+        notice.to_lowercase().contains("syntax"),
         "AC-25: notice names the missing capability: {notice}"
     );
     // the missing-renderer notice names the binary, points to remediation, and never
@@ -472,10 +484,10 @@ fn an_oversized_full_diff_is_truncated_with_a_notice() {
 #[test]
 fn a_hanging_renderer_times_out_and_falls_back() {
     let renderers = Renderers {
-        markdown: vec!["sleep".into(), "30".into()],
+        markdown: vec!["cat".into()],
         diff: vec!["cat".into()],
         full_diff: vec!["cat".into()],
-        syntax: vec!["cat".into()],
+        syntax: vec!["sleep".into(), "30".into()],
         timeout: Duration::from_millis(150),
     };
     let prepared = Prepared::Full {
@@ -485,7 +497,7 @@ fn a_hanging_renderer_times_out_and_falls_back() {
     let (text, notice) = render(
         &renderers,
         &prepared,
-        ViewMode::RenderedMarkdown,
+        ViewMode::SyntaxContent,
         None,
         None,
         Caps::default(),

@@ -156,7 +156,7 @@ fn pinned_preview_journey_is_read_only_and_does_not_outlive_its_process() {
             .expect("type the distinct post-unpin finder query");
     }
     session
-        .expect("UNPIN_TARGET.txt")
+        .expect("UNPIN_TARGET")
         .expect("the finder selected the distinct post-unpin active file");
     session
         .send("\r")
@@ -189,11 +189,9 @@ fn pinned_preview_journey_is_read_only_and_does_not_outlive_its_process() {
     // A bare ESC must be separated from the next byte or crossterm may decode the pair as Alt+q.
     // This is input framing, not a viewer-settling wait.
     std::thread::sleep(Duration::from_millis(150));
-    // Send both close keys in one write. In the ordinary unzoomed journey the first quits and the
-    // queued second byte is discarded; if a zoom-state perturbation is added above, the first
-    // peels zoom and the second quits. Neither case relies on an unreliable runtime state probe.
+    // Send enough close keys to peel an optional zoom, open the exit confirmation, and confirm.
     session
-        .send("qq")
+        .send("qqq")
         .expect("close the viewer regardless of the zoom layer");
     session.expect(Eof).expect("the journey exits cleanly");
     match session.get_process().wait().expect("reap journey viewer") {
@@ -226,6 +224,8 @@ fn pinned_preview_journey_is_read_only_and_does_not_outlive_its_process() {
         .expect("Pinned: PINNED.txt — widen to view")
         .expect("AC-13: fresh process started without a persisted pin");
     fresh.send("q").expect("close fresh viewer");
+    fresh.expect("Exit file viewer?").expect("exit confirms");
+    fresh.send("q").expect("confirm exit");
     fresh.expect(Eof).expect("fresh viewer exits cleanly");
     match fresh.get_process().wait().expect("reap fresh viewer") {
         WaitStatus::Exited(_, 0) => {}

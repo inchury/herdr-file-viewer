@@ -25,7 +25,7 @@ fn non_git_directory_browses_and_renders_with_git_keys_inert() {
     s.set_expect_timeout(Some(Duration::from_secs(15)));
 
     // Tree browsing works without git (AC-2 / AC-26).
-    s.expect("notes.txt")
+    s.expect("notes")
         .expect("tree should list files in a non-git directory");
     // A file renders (content pane fills from empty with the selected file).
     s.expect("PLAINVIEW")
@@ -38,6 +38,8 @@ fn non_git_directory_browses_and_renders_with_git_keys_inert() {
     }
 
     s.send("q").expect("send close");
+    s.expect("Exit file viewer?").expect("exit confirms");
+    s.send("q").expect("confirm exit");
     s.expect(Eof)
         .expect("the viewer terminates after the close key");
     match s.get_process().wait().expect("reap the viewer") {

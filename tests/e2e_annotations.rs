@@ -150,9 +150,6 @@ fn live_file_range_overview_copy_clear_and_modal_isolation() {
         .expect("file annotation editor opens");
     session.send("File note").expect("type the file note");
     session.send("\r").expect("save the file annotation");
-    session
-        .expect("annotations: 1")
-        .expect("the saved annotation count appears in the content border");
     session.send("A").expect("show the annotation overview");
     session
         .expect("Annotations (1)")
@@ -222,6 +219,8 @@ fn live_file_range_overview_copy_clear_and_modal_isolation() {
 
     send_esc!(session);
     session.send("q").expect("quit after closing the overview");
+    session.expect("Exit file viewer?").expect("exit confirms");
+    session.send("q").expect("confirm exit");
     session
         .expect(Eof)
         .expect("the viewer exits cleanly after all annotation flows");
@@ -255,14 +254,16 @@ fn live_quit_confirm_cancels_then_copies_and_quits() {
     session.expect("Add annotation").expect("editor opens");
     session.send("Keep me").expect("type the note");
     session.send("\r").expect("save the annotation");
+    session.send("A").expect("open the annotation overview");
     session
-        .expect("annotations: 1")
+        .expect("Annotations (1)")
         .expect("the annotation is held");
+    send_esc!(session);
 
     // `q` must not quit while an annotation is held: it raises the confirm.
     session.send("q").expect("attempt to quit");
     session
-        .expect("Discard annotations?")
+        .expect("Exit file viewer?")
         .expect("quitting with a held annotation confirms rather than quitting");
 
     // Esc cancels back to the viewer, with the annotation intact.
@@ -276,7 +277,7 @@ fn live_quit_confirm_cancels_then_copies_and_quits() {
     // `q` again, then `y`: copies through the real OSC 52 adapter, then exits.
     session.send("q").expect("attempt to quit again");
     session
-        .expect("Discard annotations?")
+        .expect("Exit file viewer?")
         .expect("the confirm returns");
     session.send("y").expect("copy and quit");
     let capture = session
@@ -318,13 +319,15 @@ fn live_quit_confirm_q_discards_and_exits() {
     session.expect("Add annotation").expect("editor opens");
     session.send("Drop me").expect("type the note");
     session.send("\r").expect("save the annotation");
+    session.send("A").expect("open the annotation overview");
     session
-        .expect("annotations: 1")
+        .expect("Annotations (1)")
         .expect("the annotation is held");
+    send_esc!(session);
 
     session.send("q").expect("attempt to quit");
     session
-        .expect("Discard annotations?")
+        .expect("Exit file viewer?")
         .expect("the confirm appears");
     session.send("q").expect("quit anyway");
     session
@@ -336,11 +339,9 @@ fn live_quit_confirm_q_discards_and_exits() {
     }
 }
 
-/// `confirm_discard = false` opts out: `q` quits and discards immediately. Drives the
-/// real binary with a real config file, so it covers the whole wiring path (config parse -> resolve
-/// -> `apply_confirm_discard` -> the guard) that unit tests stub out.
+/// `confirm_discard = false` affects worktree switches; the explicit exit confirmation remains.
 #[test]
-fn live_confirm_discard_false_quits_immediately() {
+fn live_confirm_discard_false_still_confirms_exit() {
     let dir = TempDir::new();
     let root = dir.path();
     std::fs::write(root.join("annotate.txt"), "TOPANNOTATIONMARK\nline two\n").unwrap();
@@ -363,17 +364,22 @@ fn live_confirm_discard_false_quits_immediately() {
     session.expect("Add annotation").expect("editor opens");
     session.send("Discard me").expect("type the note");
     session.send("\r").expect("save the annotation");
+    session.send("A").expect("open the annotation overview");
     session
-        .expect("annotations: 1")
+        .expect("Annotations (1)")
         .expect("the annotation is held");
+    send_esc!(session);
 
-    // With the guard off, this `q` must exit rather than raise the confirm.
-    session.send("q").expect("quit with the guard disabled");
+    session.send("q").expect("request exit");
+    session
+        .expect("Exit file viewer?")
+        .expect("exit still confirms");
+    session.send("q").expect("confirm exit");
     session
         .expect(Eof)
-        .expect("confirm_discard = false quits immediately, no confirm");
+        .expect("confirmation quits and discards");
     match session.get_process().wait().expect("reap the viewer") {
-        WaitStatus::Exited(_, code) => assert_eq!(code, 0, "the opt-out exits cleanly"),
+        WaitStatus::Exited(_, code) => assert_eq!(code, 0, "confirmed exit is clean"),
         other => panic!("expected a clean exit, got {other:?}"),
     }
 }

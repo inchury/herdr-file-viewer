@@ -325,10 +325,10 @@ and discards, `Esc` cancels the switch and stays put). A failed switch or a same
 nothing and never confirms, since neither would lose anything. Closing and relaunching the viewer
 always starts with an empty annotation store.
 
-Because annotations live only for the session, anything that would discard them confirms first
-rather than losing them to a stray key: quitting (`q`) and switching worktree (`W`) both raise it.
-The dialog lists what would be lost, in the same rows the overview uses (the first eight, then
-`+N more`, so it stays glanceable on a short terminal):
+Quitting (`q`) always opens an exit confirmation, even when no annotations are held. Switching
+worktrees (`W`) opens a discard confirmation when annotations are held. The dialog lists any held
+annotations in the same rows the overview uses (the first eight, then `+N more`, so it stays
+glanceable on a short terminal):
 
 - **`y` copies them and continues**, which is usually where you were headed anyway: it writes the
   same `<file-annotations>` block the overview's `y` does, so you land ready to paste. If the
@@ -339,9 +339,9 @@ The dialog lists what would be lost, in the same rows the overview uses (the fir
 - **`Esc` cancels**, returning to the viewer with the annotations intact. On a switch this cancels
   the switch itself, not just the discard.
 
-The confirm only appears when the store is non-empty, so it never interrupts a session that did not
-use annotations. Backing out of zoom with `q` is not a quit and raises no confirm. Set
-`confirm_discard = false` in the config to skip it and discard immediately.
+Backing out of zoom with `q` is not a quit and raises no confirm. Set `confirm_discard = false`
+to skip the confirmation on worktree switches and discard annotations immediately. This setting
+does not skip the exit confirmation.
 
 The exact concise copy format is:
 

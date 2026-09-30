@@ -28,6 +28,15 @@ use std::time::{Duration, Instant};
 /// `dispatch_render` is caught by the tests that assert it appears.
 const LOADING_PLACEHOLDER: &str = "Rendering\u{2026}";
 
+fn await_status_refresh(ctrl: &mut Controller) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while ctrl.status_refresh_pending() {
+        ctrl.poll();
+        assert!(Instant::now() < deadline, "initial Git state never arrived");
+        std::thread::yield_now();
+    }
+}
+
 /// A renderer that sleeps before producing output — the stand-in for a slow external CLI.
 struct SlowContent {
     delay: Duration,
@@ -483,6 +492,7 @@ fn full_diff_mode_asks_git_for_whole_file_context() {
         Baseline::Head,
         components,
     );
+    await_status_refresh(&mut ctrl);
 
     // The changed file defaults to the compact Diff; one cycle advances to FullDiff, which
     // dispatches a render whose worker requests a full-context diff.
@@ -1397,6 +1407,7 @@ fn status_mode_forces_working_tree_file_diff() {
         Baseline::Base, // session baseline is Base; status mode must still force Head
         components,
     );
+    await_status_refresh(&mut ctrl);
 
     ctrl.handle(Intent::ToggleStatusMode);
     assert!(ctrl.status_mode());
@@ -1493,6 +1504,7 @@ fn status_mode_ctrl_on_base() -> (Controller, DiffLog, TempDir) {
         Baseline::Base, // feature-branch baseline: status mode must still force Head
         components,
     );
+    await_status_refresh(&mut ctrl);
     ctrl.handle(Intent::ToggleStatusMode);
     let nodes = ctrl.tree().visible_nodes();
     let file_idx = nodes
@@ -1610,6 +1622,7 @@ fn status_mode_directory_uses_diff_directory_with_head() {
         Baseline::Base,
         components,
     );
+    await_status_refresh(&mut ctrl);
 
     ctrl.handle(Intent::ToggleStatusMode);
     // In changed-only/status synthetic tree, directories are expanded ancestors of status files.
