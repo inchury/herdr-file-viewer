@@ -68,6 +68,10 @@ A taste of what the keys do — the [full key & mouse reference](docs/keys.md) h
 | `?` | Help overlay: What's New, keys, settings, about |
 | `Esc` | Close the current overlay/zoom; at the outer level, show an explicit exit confirmation before leaving the viewer |
 
+## v0.1.0 binary release
+
+Download the prebuilt binary for Windows x64, Linux x64 (musl), macOS Apple Silicon, or macOS Intel from [GitHub Releases](https://github.com/inchury/herdr-file-viewer/releases/tag/v0.1.0). The release also includes `SHA256SUMS` for integrity verification. Windows support remains preview.
+
 ## Quick start
 
 > [!IMPORTANT]

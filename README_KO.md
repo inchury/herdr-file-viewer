@@ -75,6 +75,10 @@
 전체 키와 마우스 동작은 [docs/keys.md](docs/keys.md), 기능별 설명은
 [docs/usage.md](docs/usage.md)를 참고하세요.
 
+## v0.1.0 바이너리 배포
+
+[GitHub Releases](https://github.com/inchury/herdr-file-viewer/releases/tag/v0.1.0)에서 Windows x64, Linux x64(musl), macOS Apple Silicon 및 Intel용 실행 파일을 받을 수 있습니다. 무결성 확인용 `SHA256SUMS`도 함께 제공됩니다. Windows 지원은 프리뷰 단계입니다.
+
 ## 빠른 시작
 
 > **중요:** 이 fork의 기능을 사용하려면 반드시 `inchury/herdr-file-viewer`에서 설치해야

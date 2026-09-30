@@ -10,7 +10,7 @@ diffs). git 2.39 (Apple's Xcode git) is supported. The optional renderers (`glow
 The system `curl` is optional: without it, document retrieval is unavailable without an error.
 See [external renderers](renderers.md).
 
-> **No Rust toolchain needed when a prebuilt exists.** `herdr plugin install smarzban/herdr-file-viewer`
+> **No Rust toolchain needed when a prebuilt exists.** `herdr plugin install inchury/herdr-file-viewer`
 > downloads a prebuilt, SHA-256-verified binary for your platform (macOS arm64/x86_64, Linux x86_64,
 > Windows x86_64 preview).
 > The prebuilt is matched by **version**, so you get it even when `main` is ahead of the latest tag.
@@ -25,9 +25,9 @@ which the viewer pane launches:
 
 ```bash
 # install (and update, re-run any time to get the latest):
-herdr plugin install smarzban/herdr-file-viewer
+herdr plugin install inchury/herdr-file-viewer
 # …optional: pin a specific older version for reproducibility:
-herdr plugin install smarzban/herdr-file-viewer --ref v1.0.0
+herdr plugin install inchury/herdr-file-viewer --ref v0.1.0
 
 # or, for local development, link this checkout in place:
 cargo build --release            # plugin link does NOT run the [[build]] step, so build first
@@ -61,7 +61,7 @@ herdr has no plugin auto-update. An advisory status row can point to `?` for rel
 Installation remains manual: re-run the install yourself to get the latest:
 
 ```bash
-herdr plugin install smarzban/herdr-file-viewer
+herdr plugin install inchury/herdr-file-viewer
 ```
 
 - You **don't** need `--ref` to stay current; it only *pins* a specific version (and a pin stays

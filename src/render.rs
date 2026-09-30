@@ -502,7 +502,10 @@ impl MarkdownWriter {
         self.lines.push(border('┌', '┬', '┐'));
         for (row_index, row) in table.rows.into_iter().enumerate() {
             let wrapped: Vec<Vec<Vec<Span<'static>>>> = (0..cols)
-                .map(|col| wrap_table_cell(row.get(col).cloned().unwrap_or_default(), widths[col]))
+                .map(|col| {
+                    let cell = row.get(col).cloned().unwrap_or_default();
+                    if self.table_width.is_none() { vec![cell] } else { wrap_table_cell(cell, widths[col]) }
+                })
                 .collect();
             let height = wrapped.iter().map(Vec::len).max().unwrap_or(1);
             for line_index in 0..height {
