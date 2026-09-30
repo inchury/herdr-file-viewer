@@ -75,48 +75,40 @@
 전체 키와 마우스 동작은 [docs/keys.md](docs/keys.md), 기능별 설명은
 [docs/usage.md](docs/usage.md)를 참고하세요.
 
-## v0.1.0 바이너리 배포
+## 설치 (v0.1.0)
 
-[GitHub Releases](https://github.com/inchury/herdr-file-viewer/releases/tag/v0.1.0)에서 Windows x64, Linux x64(musl), macOS Apple Silicon 및 Intel용 실행 파일을 받을 수 있습니다. 무결성 확인용 `SHA256SUMS`도 함께 제공됩니다. Windows 지원은 프리뷰 단계입니다.
+**지원 플랫폼에서는 Rust를 설치할 필요가 없습니다.** [v0.1.0 릴리스](https://github.com/inchury/herdr-file-viewer/releases/tag/v0.1.0)에 다음 실행 파일과 무결성 검증용 `SHA256SUMS`가 게시되어 있습니다.
 
-## 빠른 시작
+| 플랫폼 | 릴리스 파일 |
+| --- | --- |
+| Windows x64 (프리뷰) | `herdr-file-viewer-x86_64-pc-windows-msvc.exe` |
+| Linux x64 | `herdr-file-viewer-x86_64-unknown-linux-musl` |
+| macOS Apple Silicon | `herdr-file-viewer-aarch64-apple-darwin` |
+| macOS Intel | `herdr-file-viewer-x86_64-apple-darwin` |
 
-> **중요:** 이 fork의 기능을 사용하려면 반드시 `inchury/herdr-file-viewer`에서 설치해야
-> 합니다. `smarzban/herdr-file-viewer`를 설치하면 upstream 버전이 설치되며, 이 fork에서
-> 추가한 내장 Markdown renderer, Windows 개선, 포커스 복귀 응답성 개선, 종료 확인 기능 등이
-> 포함되지 않습니다.
-
-플러그인을 설치합니다.
+사전 요구 사항은 **Herdr 0.7 이상**과 `PATH`에 등록된 **Git**입니다. Windows에서는
+Herdr의 **preview 채널**이 필요합니다. 운영체제와 관계없이 다음 명령으로 설치합니다.
 
 ```bash
 herdr plugin install inchury/herdr-file-viewer
 ```
 
-이 fork에 현재 버전과 일치하는 release binary가 있으면 SHA-256 검증 후 사용하고,
-없으면 해당 checkout의 소스를 Rust 1.96+로 빌드합니다.
-
-Markdown preview와 compact diff는 외부 renderer가 필요하지 않습니다. Full diff와 소스
-구문 강조를 강화하려면 `delta`와 `bat`를 선택적으로 설치할 수 있습니다.
-
-macOS 예:
+설치 스크립트가 현재 소스 버전과 일치하는 v0.1.0 실행 파일을 내려받아 SHA-256을
+검증한 뒤 플러그인 내부의 `target/release`에 배치합니다. **다운로드·검증에 실패하거나
+지원하지 않는 플랫폼 또는 미배포 버전인 경우에만 Rust 1.96+를 이용한 소스 빌드로
+전환합니다.** 특정 버전을 고정하려면 다음과 같이 설치합니다.
 
 ```bash
-brew install git-delta bat
+herdr plugin install inchury/herdr-file-viewer --ref v0.1.0
 ```
 
-Linux/macOS에서는 다음 helper를 사용할 수 있습니다.
+GitHub Releases에서 실행 파일을 직접 받을 수도 있지만, **직접 다운로드만으로는
+Herdr 플러그인과 실행 액션이 등록되지 않습니다.** Herdr와 연동하려면 위의
+`herdr plugin install` 명령을 사용하세요.
 
-```bash
-./scripts/install-renderers.sh
-```
+### 실행 단축키 등록: Linux / macOS
 
-Windows PowerShell에서는:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-renderers.ps1
-```
-
-Herdr 설정(`~/.config/herdr/config.toml`)에 실행 키를 등록합니다.
+Herdr 설정 파일(`~/.config/herdr/config.toml`)에 다음 내용을 추가합니다.
 
 ```toml
 [[keys.command]]
@@ -132,16 +124,35 @@ command = "herdr-file-viewer.open-file-viewer-tab"
 description = "open file viewer in tab"
 ```
 
-설정 변경 후:
+### 실행 단축키 등록: Windows (프리뷰)
 
-```bash
-herdr server reload-config
+**Windows에서는 액션 ID 끝에 `-windows`가 붙습니다.** Linux/macOS 설정 대신
+아래 내용을 사용해야 합니다.
+
+```toml
+[[keys.command]]
+key = "prefix+f"
+type = "plugin_action"
+command = "herdr-file-viewer.open-file-viewer-windows"
+description = "open file viewer in split"
+
+[[keys.command]]
+key = "prefix+shift+f"
+type = "plugin_action"
+command = "herdr-file-viewer.open-file-viewer-tab-windows"
+description = "open file viewer in tab"
 ```
 
-Windows native preview에서는 action id가 각각
-`herdr-file-viewer.open-file-viewer-windows`,
-`herdr-file-viewer.open-file-viewer-tab-windows`입니다. 자세한 내용은
-[Windows 문서](docs/windows.md)를 참고하세요.
+설정 저장 후 `herdr server reload-config`를 실행합니다. 플러그인에 실행 스크립트와
+액션이 포함되어 있으므로 바이너리를 수동으로 복사할 필요는 없습니다.
+
+### 선택적 renderer
+
+Markdown 미리보기와 compact diff는 내장 renderer로 처리합니다. `delta`는 full diff,
+`bat`은 코드 구문 강조를 강화하는 선택적 도구이며, 일부 도움말/기존 경로에서는
+`glow`를 사용할 수 있습니다. 설치 방법은 [renderer 문서](docs/renderers.md)와
+[Windows 문서](docs/windows.md), 업데이트 및 소스 빌드 방법은
+[상세 설치 문서](docs/install.md)를 참고하세요.
 
 ## 특정 파일/줄 바로 열기
 

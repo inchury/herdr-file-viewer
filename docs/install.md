@@ -1,72 +1,93 @@
 # Install & updating
 
-Requirements: **herdr 0.7.0+**, on **Linux** or **macOS** (native Windows
-`x86_64-pc-windows-msvc` is a [preview](windows.md)). **Git** must be on `PATH` at
-runtime. The viewer shells out to the system `git` CLI (read-only subcommands) for the
-git-aware tree (status markers, changed-only filter, baseline toggle) and the diff view.
-Without git the viewer still opens, but those features are degraded (no status colors, no
-diffs). git 2.39 (Apple's Xcode git) is supported. The optional renderers (`glow` / `delta` /
-`bat`) are separate.
-The system `curl` is optional: without it, document retrieval is unavailable without an error.
-See [external renderers](renderers.md).
+## Requirements and published binaries
 
-> **No Rust toolchain needed when a prebuilt exists.** `herdr plugin install inchury/herdr-file-viewer`
-> downloads a prebuilt, SHA-256-verified binary for your platform (macOS arm64/x86_64, Linux x86_64,
-> Windows x86_64 preview).
-> The prebuilt is matched by **version**, so you get it even when `main` is ahead of the latest tag.
-> You'll receive the most recent released binary (a note tells you when newer, unreleased changes
-> aren't in it yet). It builds from source with `cargo` (Rust 1.96+) only when there's no matching
-> prebuilt at all: an unsupported platform, or a version that hasn't been released yet. The install
-> command is the same either way.
+- **Herdr 0.7+** and **Git** on `PATH`. Git powers the tree's status and diff features.
+- **Windows:** native x64 support is a preview and requires Herdr's preview channel.
+- **No Rust toolchain is needed for a normal install on a supported platform.** The
+  [v0.1.0 release](https://github.com/inchury/herdr-file-viewer/releases/tag/v0.1.0)
+  includes SHA-256-verified binaries for Windows x64, Linux x64 (musl), macOS Apple Silicon,
+  and macOS Intel, plus a `SHA256SUMS` file.
 
-**Install through herdr**: herdr runs the manifest's `[[build]]` step at install time, either
-downloading a prebuilt binary or compiling from source, producing `./target/release/herdr-file-viewer`,
-which the viewer pane launches:
+| Platform | Published asset |
+| --- | --- |
+| Windows x64 | `herdr-file-viewer-x86_64-pc-windows-msvc.exe` |
+| Linux x64 | `herdr-file-viewer-x86_64-unknown-linux-musl` |
+| macOS Apple Silicon | `herdr-file-viewer-aarch64-apple-darwin` |
+| macOS Intel | `herdr-file-viewer-x86_64-apple-darwin` |
+
+## Install through Herdr
 
 ```bash
-# install (and update, re-run any time to get the latest):
 herdr plugin install inchury/herdr-file-viewer
-# …optional: pin a specific older version for reproducibility:
-herdr plugin install inchury/herdr-file-viewer --ref v0.1.0
-
-# or, for local development, link this checkout in place:
-cargo build --release            # plugin link does NOT run the [[build]] step, so build first
-herdr plugin link /path/to/herdr-file-viewer
 ```
 
-> You don't need `--ref` to stay current. A bare install pulls the latest. See [Updating](#updating).
+Herdr clones this fork and runs the platform-specific `[[build]]` step from
+`herdr-plugin.toml`. The installer downloads the binary matching the checked-out
+`Cargo.toml` version and host architecture, verifies its SHA-256 against the release's
+`SHA256SUMS`, and places it under `target/release`. The bundled pane/action launchers
+use that binary.
 
-Confirm it registered with `herdr plugin list`. To build manually outside herdr:
+To pin the first release:
 
 ```bash
-cargo build --release
+herdr plugin install inchury/herdr-file-viewer --ref v0.1.0
 ```
+
+**Source-build fallback:** If the release asset or checksum cannot be downloaded or verified,
+the platform is unsupported, or the checked-out version has no release, the installer tries
+`cargo build --release`. This fallback requires **Rust 1.96+**. A network failure can
+therefore cause an otherwise prebuilt-supported installation to request Rust; check the
+download error and GitHub connectivity first. A checksum mismatch is not accepted as a valid
+prebuilt download.
+
+**Release versus checkout:** The installer selects a binary by the version declared in
+`Cargo.toml`, not by exact commit. If `main` contains unreleased changes but still declares
+`0.1.0`, installing from `main` uses the published v0.1.0 binary, not those newer source
+changes. For reproducible behavior, use `--ref v0.1.0`; for development, build from source.
+
+Directly downloading an executable from GitHub Releases does **not** register the plugin's
+Herdr actions. Use `herdr plugin install` for Herdr integration.
 
 ## After installing
 
-herdr's install output is intentionally terse (`Installed …` / `Config: …`) and won't prompt you,
-so two quick steps remain:
+Confirm registration with `herdr plugin list`. Bind a key to the correct action IDs:
 
-1. **Bind a key** to summon the viewer. See [Quick start](../README.md#quick-start) (or
-   [Summoning the viewer](summoning.md) for split-vs-tab and the `--remote` caveat). No key bound
-   yet? Open it once from the CLI:
-   `herdr plugin action invoke open-file-viewer --plugin herdr-file-viewer`.
-2. **(Optional) install the renderers** (`glow` / `delta` / `bat`) so markdown, diffs, and code are
-   styled instead of plain text. See [external renderers](renderers.md). The viewer works without
-   them (plain-text fallback).
+- Linux/macOS: `herdr-file-viewer.open-file-viewer` (split) or
+  `herdr-file-viewer.open-file-viewer-tab` (tab).
+- Windows: `herdr-file-viewer.open-file-viewer-windows` (split) or
+  `herdr-file-viewer.open-file-viewer-tab-windows` (tab).
+
+See [README](../README.md#install-v010) for copy-pasteable bindings, or
+[Windows setup](windows.md) for the native launcher. Reload settings with
+`herdr server reload-config` after editing your Herdr config.
+
+The built-in Markdown preview and compact diff need no external renderer. Optional `delta`
+and `bat` enhance full diff and source highlighting; `glow` may still be used for some
+help/legacy paths. See [renderer setup](renderers.md).
 
 ## Updating
 
-herdr has no plugin auto-update. An advisory status row can point to `?` for release details.
-Installation remains manual: re-run the install yourself to get the latest:
+Herdr does not automatically update this plugin. Re-run the install command to fetch the
+current repository checkout and its matching released binary:
 
 ```bash
 herdr plugin install inchury/herdr-file-viewer
 ```
 
-- You **don't** need `--ref` to stay current; it only *pins* a specific version (and a pin stays
-  pinned until you change it).
-- Want a heads-up the moment a release ships? On GitHub, **Watch → Custom → Releases**.
-- Prefer no remote notices? Set [`update_check = false`](configuration.md), or set
-  `HERDR_FILE_VIEWER_NO_UPDATE_CHECK` when the config key is absent. The check otherwise runs at
-  most once per 24h and never blocks the viewer when offline.
+For a fixed version, keep `--ref v0.1.0`. GitHub **Watch → Custom → Releases** can
+notify you when new releases are published. To disable the viewer's optional background
+release notices, use `update_check = false` or set
+`HERDR_FILE_VIEWER_NO_UPDATE_CHECK`. The check runs at most once every 24 hours.
+
+## Local development and source builds
+
+`herdr plugin link` does **not** run the manifest's `[[build]]` step. Build first:
+
+```bash
+cargo build --release
+herdr plugin link /path/to/herdr-file-viewer
+```
+
+Source builds require Rust 1.96+. If a supported-platform install unexpectedly asks for
+Rust, inspect the prebuilt download/checksum error before installing a toolchain.

@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/inchury/herdr-file-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/inchury/herdr-file-viewer/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Rust 1.96+](https://img.shields.io/badge/rust-1.96%2B-orange.svg)
+![Rust 1.96+ for source builds](https://img.shields.io/badge/rust-source%20builds%20only-orange.svg)
 ![herdr 0.7+](https://img.shields.io/badge/herdr-0.7%2B-8a2be2)
 ![platforms: linux • macOS • Windows (preview)](https://img.shields.io/badge/platforms-linux%20%E2%80%A2%20macOS%20%E2%80%A2%20Windows%20(preview)-informational)
 
@@ -69,30 +69,38 @@ A taste of what the keys do — the [full key & mouse reference](docs/keys.md) h
 | `?` | Help overlay: What's New, keys, settings, about |
 | `Esc` | Close the current overlay/zoom; at the outer level, show an explicit exit confirmation before leaving the viewer |
 
-## v0.1.0 binary release
+## Install v0.1.0
 
-Download the prebuilt binary for Windows x64, Linux x64 (musl), macOS Apple Silicon, or macOS Intel from [GitHub Releases](https://github.com/inchury/herdr-file-viewer/releases/tag/v0.1.0). The release also includes `SHA256SUMS` for integrity verification. Windows support remains preview.
+**Rust is not required for a normal installation on a supported platform.** The [v0.1.0
+release](https://github.com/inchury/herdr-file-viewer/releases/tag/v0.1.0) is published with
+SHA-256 checksums and these prebuilt binaries:
 
-## Quick start
+| Platform | Release asset |
+| --- | --- |
+| Windows x64 (preview) | `herdr-file-viewer-x86_64-pc-windows-msvc.exe` |
+| Linux x64 | `herdr-file-viewer-x86_64-unknown-linux-musl` |
+| macOS Apple Silicon | `herdr-file-viewer-aarch64-apple-darwin` |
+| macOS Intel | `herdr-file-viewer-x86_64-apple-darwin` |
 
-> [!IMPORTANT]
-> Install this fork from `inchury/herdr-file-viewer`. Installing `smarzban/herdr-file-viewer`
-> installs the upstream project and does **not** include this fork's native Markdown, Windows,
-> responsiveness, and exit-confirmation changes.
+You need **Herdr 0.7+** and **Git** on `PATH`. Native Windows requires Herdr's **preview
+channel**. Install the plugin (the same command on all three operating systems):
 
 ```bash
-# Install this fork. A matching release binary is used when this fork publishes one;
-# otherwise the installer builds this checkout from source with Rust 1.96+.
 herdr plugin install inchury/herdr-file-viewer
-
-# Optional: install external renderers for full diff / source highlighting:
-# Markdown preview and compact diff need no external tools.
-brew install git-delta bat           # macOS, or use your package manager
-#   Linux/macOS helper: ./scripts/install-renderers.sh
-#   Windows PowerShell: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-renderers.ps1
 ```
 
-Then **bind a key** in your herdr config (`~/.config/herdr/config.toml`) so one press summons it:
+The plugin installer downloads the matching v0.1.0 binary, verifies it against the release's
+`SHA256SUMS`, and puts it in the plugin's `target/release` directory. It falls back to
+compiling with **Rust 1.96+** if the download or verification fails, the platform is unsupported,
+or the checked-out source declares a version without a matching release. You can pin this exact
+release with `herdr plugin install inchury/herdr-file-viewer --ref v0.1.0`.
+
+Downloading an executable directly from GitHub Releases is also possible, but **does not install
+the Herdr plugin or register its actions**. For integration with Herdr, use the command above.
+
+### Bind a key (Linux / macOS)
+
+Add the following to your Herdr config (`~/.config/herdr/config.toml`):
 
 ```toml
 [[keys.command]]
@@ -108,13 +116,34 @@ command = "herdr-file-viewer.open-file-viewer-tab"
 description = "open file viewer in tab"
 ```
 
-Run `herdr server reload-config`, then press your key. That's the whole setup: the split-pane
-viewer and its open actions ship **inside** the plugin and register automatically on install, so
-you only add the keybinding.
+### Bind a key (native Windows preview)
 
-Deeper detail lives in the docs: [install & updating](docs/install.md),
-[summoning the viewer](docs/summoning.md) (split vs. tab, the launcher, `--remote`),
-[external renderers](docs/renderers.md), and the [keys reference](docs/keys.md).
+**Windows uses different action IDs.** Use these bindings instead of the Linux/macOS ones:
+
+```toml
+[[keys.command]]
+key = "prefix+f"
+type = "plugin_action"
+command = "herdr-file-viewer.open-file-viewer-windows"
+description = "open file viewer in split"
+
+[[keys.command]]
+key = "prefix+shift+f"
+type = "plugin_action"
+command = "herdr-file-viewer.open-file-viewer-tab-windows"
+description = "open file viewer in tab"
+```
+
+After saving the config, run `herdr server reload-config`. The open actions and launchers
+are included in the plugin; no manual binary placement is needed.
+
+### Optional renderers
+
+The built-in Markdown preview and compact diff work without external renderers. `delta` can
+enhance full diffs and `bat` can enhance source highlighting; some help/legacy paths can still
+use `glow`. See [renderer setup](docs/renderers.md) or
+[the Windows helper](docs/windows.md). For version pinning, updates, source builds, and
+troubleshooting, see [installation details](docs/install.md).
 
 ## Configuration
 
