@@ -170,6 +170,12 @@ fn add_range_annotation(ctrl: &mut Controller, start: usize, end: usize, text: &
     await_lines(ctrl);
     ctrl.set_content_viewport(80, 10);
     ctrl.enter_line_select_at_top();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while ctrl.line_selection().is_none() {
+        ctrl.poll();
+        assert!(Instant::now() < deadline, "line selection never opened");
+        std::thread::sleep(Duration::from_millis(5));
+    }
     for _ in 1..start {
         ctrl.handle_line_select_key(key(KeyCode::Char('j')));
     }
