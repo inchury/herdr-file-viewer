@@ -157,13 +157,25 @@ fn controller_with_changed_file_view(
         clipboard: Box::new(common::RecordingClipboard::default()),
         renderers: None,
     };
-    let ctrl = Controller::new_with_changed_file_view(
+    let mut ctrl = Controller::new_with_changed_file_view(
         common::resolved(root.to_path_buf(), is_git_repo),
         Baseline::Head,
         components,
         changed_file_view,
     );
+    await_status_refresh(&mut ctrl);
     (ctrl, changed_calls, opened)
+}
+
+/// The normal fixture starts with a settled Git view. Startup discovery is asynchronous, so
+/// tests of later intents must observe its completion before asserting the initial mode or tree.
+fn await_status_refresh(ctrl: &mut Controller) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while ctrl.status_refresh_pending() {
+        ctrl.poll();
+        assert!(Instant::now() < deadline, "initial Git state never arrived");
+        std::thread::yield_now();
+    }
 }
 
 fn visible_names(ctrl: &Controller) -> Vec<String> {
@@ -544,6 +556,7 @@ fn status_mode_refilters_from_working_tree_status_on_refresh() {
         Baseline::Head,
         components,
     );
+    await_status_refresh(&mut ctrl);
 
     ctrl.handle(Intent::ToggleStatusMode);
     assert!(ctrl.status_mode());
@@ -803,8 +816,8 @@ fn configured_content_view_starts_changed_files_in_their_normal_file_type_mode()
     );
     assert_eq!(
         md_ctrl.render_seq(),
-        1,
-        "configured startup dispatches only its final render"
+        2,
+        "asynchronous Git discovery re-renders after the initial content paint"
     );
     assert_eq!(
         md_ctrl.selected_view_mode(),
@@ -830,8 +843,8 @@ fn configured_content_view_starts_changed_files_in_their_normal_file_type_mode()
     );
     assert_eq!(
         source_ctrl.render_seq(),
-        1,
-        "configured startup does not supersede a constructor render"
+        2,
+        "asynchronous Git discovery re-renders after the initial content paint"
     );
     assert_eq!(
         source_ctrl.selected_view_mode(),
@@ -994,8 +1007,8 @@ fn config_changed_file_view_flows_through_resolve_to_the_startup_view_policy() {
     );
     assert_eq!(
         diff_ctrl.selected_view_mode(),
-        Some(ViewMode::Diff),
-        "an absent key resolves to the unchanged diff-first startup"
+        Some(ViewMode::RenderedMarkdown),
+        "changed Markdown opens as a document under the default policy"
     );
 }
 
@@ -1341,12 +1354,17 @@ fn tab_is_inert_while_zoomed_so_focus_stays_on_content() {
 }
 
 #[test]
-fn close_intent_signals_quit() {
-    // AC-20: the close key ends the session (when not zoomed).
+fn close_intent_opens_exit_confirmation() {
+    // AC-20: the close key asks for an explicit exit confirmation.
     let dir = TempDir::new();
     let (mut ctrl, _, _) = controller(dir.path(), false, StubGit::default(), false);
     let fx = ctrl.handle(Intent::Close);
-    assert!(fx.quit, "Close signals the run loop to exit (AC-20)");
+    assert!(!fx.quit, "Close leaves the viewer open for confirmation");
+    assert!(ctrl.discard_confirm_open());
+    assert!(
+        ctrl.handle_discard_confirm_key(key(KeyCode::Char('q')))
+            .quit
+    );
 }
 
 #[test]
@@ -1370,7 +1388,12 @@ fn close_backs_out_of_zoom_first_then_quits() {
     );
 
     let fx2 = ctrl.handle(Intent::Close);
-    assert!(fx2.quit, "Close again (no longer zoomed) quits (AC-20)");
+    assert!(!fx2.quit, "Close again opens exit confirmation");
+    assert!(ctrl.discard_confirm_open());
+    assert!(
+        ctrl.handle_discard_confirm_key(key(KeyCode::Char('q')))
+            .quit
+    );
 }
 
 #[test]
@@ -1522,6 +1545,15 @@ fn await_marker(ctrl: &mut Controller, marker: &str) {
             "content '{marker}' never rendered"
         );
         std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
+fn await_display_mode(ctrl: &mut Controller, mode: ViewMode) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while ctrl.view_state().active.view_mode != Some(mode) || ctrl.active_document().is_none() {
+        ctrl.poll();
+        assert!(Instant::now() < deadline, "{mode:?} render never landed");
+        std::thread::yield_now();
     }
 }
 
@@ -1845,20 +1877,20 @@ fn content_pad_left_is_on_for_the_transformed_views_and_off_for_syntax() {
         ..StubGit::default()
     };
     let (mut ctrl_diff, _, _) = controller(diff.path(), true, git, false);
-    await_marker(&mut ctrl_diff, "stub-content");
+    await_display_mode(&mut ctrl_diff, ViewMode::Diff);
     assert_eq!(ctrl_diff.selected_view_mode(), Some(ViewMode::Diff));
     assert!(
         ctrl_diff.view_state().active.pad_left,
         "a diff is inset from the border"
     );
     ctrl_diff.handle(Intent::CycleView); // Diff → FullDiff — still transformed, still inset
-    await_marker(&mut ctrl_diff, "stub-content");
+    await_display_mode(&mut ctrl_diff, ViewMode::FullDiff);
     assert!(
         ctrl_diff.view_state().active.pad_left,
         "the full-context diff is inset too"
     );
     ctrl_diff.handle(Intent::CycleView); // FullDiff → SyntaxContent — gap drops
-    await_marker(&mut ctrl_diff, "stub-content");
+    await_display_mode(&mut ctrl_diff, ViewMode::SyntaxContent);
     assert_eq!(
         ctrl_diff.selected_view_mode(),
         Some(ViewMode::SyntaxContent)
@@ -3649,6 +3681,7 @@ fn focus_gained_re_queries_git_but_preserves_content_scroll() {
 
     let fx = ctrl.handle_focus_gained();
     assert!(fx.redraw, "focus-gain redraws (fresh tree colours)");
+    await_status_refresh(&mut ctrl);
     assert!(
         changed_calls.lock().unwrap().len() > before,
         "focus-gain re-queries git"
@@ -7611,11 +7644,13 @@ fn changed_controller_with_lines(root: &Path, file: &str, n: usize) -> Controlle
         clipboard: Box::new(common::RecordingClipboard::default()),
         renderers: None,
     };
-    Controller::new(
+    let mut ctrl = Controller::new(
         common::resolved(root.to_path_buf(), true),
         Baseline::Head,
         components,
-    )
+    );
+    await_status_refresh(&mut ctrl);
+    ctrl
 }
 
 #[test]
@@ -9274,7 +9309,12 @@ fn esc_clears_committed_search_before_unzoom() {
 
     // Second Intent::Close → quits (nothing left to dismiss).
     let fx2 = ctrl.handle(Intent::Close);
-    assert!(fx2.quit, "second Esc quits (nothing to dismiss)");
+    assert!(!fx2.quit, "second Esc opens exit confirmation");
+    assert!(ctrl.discard_confirm_open());
+    assert!(
+        ctrl.handle_discard_confirm_key(key(KeyCode::Char('q')))
+            .quit
+    );
 }
 
 #[test]
@@ -9314,7 +9354,12 @@ fn esc_clears_committed_search_before_unzoom_when_zoomed() {
 
     // Third Esc → quits.
     let fx3 = ctrl.handle(Intent::Close);
-    assert!(fx3.quit, "third Esc: quits");
+    assert!(!fx3.quit, "third Esc opens exit confirmation");
+    assert!(ctrl.discard_confirm_open());
+    assert!(
+        ctrl.handle_discard_confirm_key(key(KeyCode::Char('q')))
+            .quit
+    );
 }
 
 // ── #5: color swap — CURRENT_HIGHLIGHT is theme-relative (REVERSED+BOLD), HIGHLIGHT is cyan ──
@@ -10622,11 +10667,12 @@ fn controller_counting_git(root: &Path, is_git_repo: bool) -> (Controller, Recor
         clipboard: Box::new(common::RecordingClipboard::default()),
         renderers: None,
     };
-    let ctrl = Controller::new(
+    let mut ctrl = Controller::new(
         common::resolved(root.to_path_buf(), is_git_repo),
         Baseline::Head,
         components,
     );
+    await_status_refresh(&mut ctrl);
     (ctrl, calls)
 }
 

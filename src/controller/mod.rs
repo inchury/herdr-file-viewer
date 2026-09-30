@@ -3691,14 +3691,24 @@ impl Controller {
         if let Some(rx) = &self.status_rx {
             match rx.try_recv() {
                 Ok((status, changed, branch)) => {
+                    let selected_before = self
+                        .tree
+                        .selected()
+                        .filter(|node| node.kind == NodeKind::File)
+                        .map(|node| node.path.clone());
                     self.apply_git_state(&status, changed);
                     self.current_branch = branch;
                     self.status_rx = None;
-                    // The synchronous `re_root` dispatched the first render against the *empty*
-                    // changed-set, so a changed file rendered in content/markdown mode, not Diff.
-                    // Now that the real changed-set has landed, re-dispatch so the current
-                    // selection re-renders in the correct view mode (changed → Diff, AC-9).
-                    self.dispatch_render();
+                    // The view mode may change when Git status arrives. Re-render the same file
+                    // without resetting its scroll/search; only a selection change starts fresh.
+                    if let Some(path) = selected_before
+                        .filter(|path| self.tree.selected().is_some_and(|node| node.path == *path))
+                    {
+                        let mode = self.effective_mode(&path);
+                        self.dispatch_reflow(path, mode);
+                    } else {
+                        self.dispatch_render();
+                    }
                     applied = true;
                 }
                 Err(mpsc::TryRecvError::Disconnected) => self.status_rx = None,
