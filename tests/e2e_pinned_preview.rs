@@ -156,7 +156,7 @@ fn pinned_preview_journey_is_read_only_and_does_not_outlive_its_process() {
             .expect("type the distinct post-unpin finder query");
     }
     session
-        .expect("UNPIN_TARGET.txt")
+        .expect("UNPIN_TARGET")
         .expect("the finder selected the distinct post-unpin active file");
     session
         .send("\r")

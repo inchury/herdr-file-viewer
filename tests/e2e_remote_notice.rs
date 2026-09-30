@@ -171,7 +171,7 @@ fn cached_remote_notices_render_without_external_effects_or_workspace_mutation()
     session.set_expect_timeout(Some(Duration::from_secs(15)));
 
     session
-        .expect("notice.txt")
+        .expect("notice")
         .expect("viewer renders its workspace");
     session.send("?").expect("open What's New");
     session

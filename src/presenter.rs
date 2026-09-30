@@ -1172,8 +1172,6 @@ fn draw_content(
     }
     // Persistent bottom-border chips: view mode + annotation count on the left (when they fit),
     // help on the right. They ride the border rather than consuming a content row.
-    let hint_text = sanitize_control(key_hint_for_width(area.width));
-    let hint = Line::styled(hint_text.clone(), Style::new().fg(Color::Reset)).right_aligned();
     let annotation_chip = (active && state.annotation_count > 0)
         .then(|| sanitize_control(&format!("annotations: {}", state.annotation_count)));
     let status_line = {
@@ -1192,6 +1190,25 @@ fn draw_content(
         }
         (!spans.is_empty()).then(|| Line::from(spans))
     };
+    // Keep the mode and annotation count visible by shortening the hint to the space left
+    // beside them. On very narrow panes, keep the help affordance and omit the status line.
+    let hint_text = if active {
+        status_line
+            .as_ref()
+            .and_then(|line| {
+                [HELP_HINT, HELP_HINT_MEDIUM, HELP_HINT_NARROW, "? help"]
+                    .into_iter()
+                    .find(|hint| {
+                        line.width() + 1 + Line::from(*hint).width()
+                            <= area.width.saturating_sub(2) as usize
+                    })
+            })
+            .unwrap_or_else(|| key_hint_for_width(area.width))
+    } else {
+        ""
+    };
+    let hint_text = sanitize_control(hint_text);
+    let hint = Line::styled(hint_text.clone(), Style::new().fg(Color::Reset)).right_aligned();
     let hint_width = if active {
         Line::from(hint_text.as_str()).width()
     } else {

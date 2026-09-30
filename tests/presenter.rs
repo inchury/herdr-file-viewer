@@ -1266,7 +1266,7 @@ fn active_preview_path_uses_middle_ellipsis_when_the_repo_relative_path_is_long(
     state.active.display_path = Some(format!("src/{}/VeryLongName.rs", "deep-segment/".repeat(8)));
     state.active.view_mode = Some(ViewMode::SyntaxContent);
 
-    let out = render(&state, 70, 10);
+    let out = render(&state, 100, 10);
     assert!(out.contains('…'), "long path is truncated\n{out}");
     assert!(out.contains("src/"), "leading path context survives\n{out}");
     assert!(
@@ -4665,7 +4665,7 @@ fn quit_confirm_lists_what_would_be_lost_and_every_way_out() {
     });
     let out = render(&state, 100, 16);
 
-    assert!(out.contains("Discard annotations?"), "title\n{out}");
+    assert!(out.contains("Exit file viewer?"), "title\n{out}");
     assert!(
         out.contains("3 annotations will be lost:"),
         "the count is named\n{out}"

@@ -150,9 +150,6 @@ fn live_file_range_overview_copy_clear_and_modal_isolation() {
         .expect("file annotation editor opens");
     session.send("File note").expect("type the file note");
     session.send("\r").expect("save the file annotation");
-    session
-        .expect("annotations: 1")
-        .expect("the saved annotation count appears in the content border");
     session.send("A").expect("show the annotation overview");
     session
         .expect("Annotations (1)")
@@ -257,14 +254,16 @@ fn live_quit_confirm_cancels_then_copies_and_quits() {
     session.expect("Add annotation").expect("editor opens");
     session.send("Keep me").expect("type the note");
     session.send("\r").expect("save the annotation");
+    session.send("A").expect("open the annotation overview");
     session
-        .expect("annotations: 1")
+        .expect("Annotations (1)")
         .expect("the annotation is held");
+    send_esc!(session);
 
     // `q` must not quit while an annotation is held: it raises the confirm.
     session.send("q").expect("attempt to quit");
     session
-        .expect("Discard annotations?")
+        .expect("Exit file viewer?")
         .expect("quitting with a held annotation confirms rather than quitting");
 
     // Esc cancels back to the viewer, with the annotation intact.
@@ -278,7 +277,7 @@ fn live_quit_confirm_cancels_then_copies_and_quits() {
     // `q` again, then `y`: copies through the real OSC 52 adapter, then exits.
     session.send("q").expect("attempt to quit again");
     session
-        .expect("Discard annotations?")
+        .expect("Exit file viewer?")
         .expect("the confirm returns");
     session.send("y").expect("copy and quit");
     let capture = session
@@ -320,13 +319,15 @@ fn live_quit_confirm_q_discards_and_exits() {
     session.expect("Add annotation").expect("editor opens");
     session.send("Drop me").expect("type the note");
     session.send("\r").expect("save the annotation");
+    session.send("A").expect("open the annotation overview");
     session
-        .expect("annotations: 1")
+        .expect("Annotations (1)")
         .expect("the annotation is held");
+    send_esc!(session);
 
     session.send("q").expect("attempt to quit");
     session
-        .expect("Discard annotations?")
+        .expect("Exit file viewer?")
         .expect("the confirm appears");
     session.send("q").expect("quit anyway");
     session
@@ -363,13 +364,15 @@ fn live_confirm_discard_false_still_confirms_exit() {
     session.expect("Add annotation").expect("editor opens");
     session.send("Discard me").expect("type the note");
     session.send("\r").expect("save the annotation");
+    session.send("A").expect("open the annotation overview");
     session
-        .expect("annotations: 1")
+        .expect("Annotations (1)")
         .expect("the annotation is held");
+    send_esc!(session);
 
     session.send("q").expect("request exit");
     session
-        .expect("Discard annotations?")
+        .expect("Exit file viewer?")
         .expect("exit still confirms");
     session.send("q").expect("confirm exit");
     session

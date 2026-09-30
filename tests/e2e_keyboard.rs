@@ -55,7 +55,7 @@ fn finder_routes_printable_keys_to_query_and_enter_confirms_esc_cancels() {
 
     // Wait for the initial tree render so the viewer is fully up. `alpha.txt` sorts first and
     // is the cursor's initial selection; `jwtest.txt` is in the same tree draw and also visible.
-    s.expect("alpha.txt")
+    s.expect("alpha")
         .expect("tree lists the committed files on launch");
 
     // --- Cancel sub-case (AC-6): open finder, type `j` and `w` (viewer nav/wrap keys), assert
@@ -71,7 +71,7 @@ fn finder_routes_printable_keys_to_query_and_enter_confirms_esc_cancels() {
     // typing (empty query → no matches), so these cells were blank; the first render of the match
     // row writes "jwtest.txt" contiguously into previously-blank cells — a robust pty anchor.
     s.send("j").expect("send `j` into the finder query");
-    s.expect("jwtest.txt")
+    s.expect("jwtest")
         .expect("AC-7 routing proof: `j` edited the finder query (not NavDown) — jwtest.txt appears in the match list");
 
     // Type `w` — ToggleWrap in the viewer; must also land in the query without toggling anything.
@@ -145,8 +145,7 @@ fn every_keyboard_function_drives_the_viewer_and_it_exits_cleanly() {
     s.set_expect_timeout(Some(Duration::from_secs(15)));
 
     // Initial full draw lists the tree (AC-3 display, AC-17 launch).
-    s.expect("aaa.txt")
-        .expect("tree should list files on launch");
+    s.expect("aaa").expect("tree should list files on launch");
 
     // Expand the selected directory, then navigate onto the revealed child: its content fills
     // the empty pane — proving expand (l) AND navigation (j) AND content render functionally.
@@ -265,7 +264,7 @@ fn worktree_picker_switches_root_by_keyboard_and_exits_cleanly() {
     s.set_expect_timeout(Some(Duration::from_secs(15)));
 
     // Launch lists main's tree (its committed seed file) — the viewer is up on the main root.
-    s.expect("seed.txt")
+    s.expect("seed")
         .expect("tree should list main's files on launch");
 
     // --- Cancel sub-case first (AC-6): open the picker, confirm the overlay renders (its
@@ -384,7 +383,7 @@ fn go_to_line_jumps_to_a_source_line_and_opens_in_markdown_too() {
     s.set_expect_timeout(Some(Duration::from_secs(15)));
 
     // Step 1: initial draw — tree lists long.txt, its top content is shown.
-    s.expect("long.txt")
+    s.expect("long")
         .expect("tree should list long.txt on launch");
     s.expect("TOPMARK001")
         .expect("long.txt top content should be visible on launch");

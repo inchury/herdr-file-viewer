@@ -136,8 +136,7 @@ pub fn run(open_flag: Option<String>) -> io::Result<()> {
     // Apply the config-driven tree shape (`compact_dirs`): fold a chain of single-child
     // directories into one row. A startup setting — there is no runtime toggle for it.
     controller.apply_compact_dirs(eff.compact_dirs);
-    // Apply the config-driven quit guard (`confirm_discard`): whether quitting with
-    // session annotations held confirms first or discards them immediately.
+    // Apply the config-driven worktree-switch guard (`confirm_discard`); exiting always confirms.
     controller.apply_confirm_discard(eff.confirm_discard);
     // Apply the config-driven mouse-wheel scroll step (`scroll_lines`); already clamped to >= 1 by
     // the resolver, so the wheel always advances at least one line/item.

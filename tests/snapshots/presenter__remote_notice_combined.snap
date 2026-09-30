@@ -1,6 +1,5 @@
 ---
 source: tests/presenter.rs
-assertion_line: 1700
 expression: out
 ---
 "┌main.rs───────────────────────────────────────────────────┐"
@@ -21,5 +20,5 @@ expression: out
 "│                                                          │"
 "│                                                          │"
 "│                                                          │"
-"└────────────────────────────────────────────────────? help┘"
+"└────↑↓ navigate · Enter open · v view · Esc close · ? help┘"
 "Update v1.1.0 available · Spotlight: Project Meteor · ? deta"

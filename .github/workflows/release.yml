@@ -56,6 +56,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Test
+        # CI tests the native Linux/macOS hosts. Run the static musl target here as well;
+        # the macOS matrix may cross-compile an architecture its runner cannot execute,
+        # and Windows preview tests remain advisory in CI.
+        if: matrix.triple == 'x86_64-unknown-linux-musl'
         run: cargo test --locked --target ${{ matrix.triple }}
 
       - name: Build

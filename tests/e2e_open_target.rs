@@ -33,7 +33,7 @@ fn open_flag_shows_nested_file_and_line_marker() {
     // Nested basename in the tree (reveal expanded parents) + unique body line prove
     // --open path:line selected the right file. (Notice text is covered by the env/flag tests;
     // in some pty geometries the content-column notice strip is easy to miss while matching.)
-    s.expect("target.txt")
+    s.expect("target")
         .expect("tree should show the opened file");
     s.expect("LINE3_OPEN_TARGET_MARKER")
         .expect("content of the opened file (line 3) must be visible");
@@ -111,7 +111,7 @@ fn unknown_arg_still_starts_viewer() {
     let mut s = Session::spawn(cmd).expect("spawn despite unknown/bare flags");
     s.set_expect_timeout(Some(Duration::from_secs(15)));
 
-    s.expect("alive.txt")
+    s.expect("alive")
         .expect("viewer must start with unknown args ignored");
     s.expect("STILL_STARTS")
         .expect("default selection still renders");

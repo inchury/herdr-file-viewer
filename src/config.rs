@@ -168,10 +168,9 @@ pub struct Config {
     /// startup.
     pub baseline: Option<String>,
     pub update_check: Option<bool>,
-    /// Whether quitting with unexported session annotations confirms first. `None` falls back to
-    /// `true`: annotations are session-only, so quitting destroys them, and the confirm is the only
-    /// thing standing between a stray `q` and losing the batch. Set `false` to quit immediately and
-    /// discard them.
+    /// Whether switching worktrees with unexported session annotations confirms first. `None`
+    /// falls back to `true`; set `false` to switch and discard immediately. Exiting always
+    /// confirms, regardless of this setting.
     pub confirm_discard: Option<bool>,
     /// The mouse-wheel **scroll step**: how many lines/items each wheel event advances. `None`
     /// falls back to [`DEFAULT_SCROLL_LINES`]; the resolver clamps any present value into
