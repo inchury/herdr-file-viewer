@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-30
+
 ### Fixed
 - Compact `[DIFF]` rendering no longer depends on delta/ANSI round-tripping: unified diffs are styled directly in ratatui, with additions green, deletions red, hunk headers cyan, and terminal controls neutralized. `[DIFF+]` keeps the richer delta-based full-file view.
 - Changed Markdown files such as `CHANGELOG.md` and `README.md` now open in rendered `[MD]` view instead of `[DIFF]`. Diff and full-diff remain available through `v`, avoiding the slow/partial-document experience of using changed hunks as the default document view. → [usage](docs/usage.md#viewing-a-file)

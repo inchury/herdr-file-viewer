@@ -31,8 +31,9 @@ back into the chat. It never touches your files.
 
 - **The right view, automatically.** Markdown opens as a rendered document preview (including changed
   README/CHANGELOG files), changed source opens as a diff, and code is syntax-highlighted. Compact
-  diffs are colored natively (`+` green / `-` red) for stable Windows/ConPTY rendering. Press
-  Markdown tables reflow to the content pane width instead of stretching the terminal; turn wrapping off with `w` when you prefer horizontal scrolling. Press `v` only when you want another available view.
+  diffs are colored natively (`+` green / `-` red) for stable Windows/ConPTY rendering.
+  Markdown tables reflow to the content pane width instead of stretching the terminal; turn wrapping
+  off with `w` when you prefer horizontal scrolling. Press `v` only when you want another available view.
 - **Git in the tree.** `M`/`A`/`D`/`?` on every row, a changed-only filter (`c`), jump next/prev
   changed file (`]`/`[`), flip the baseline between your branch and `HEAD` (`b`). Not a separate
   git client.

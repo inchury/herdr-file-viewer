@@ -84,7 +84,6 @@ fn no_documented_launch_passes_cwd_to_plugin_pane_open() {
     );
 }
 
-
 /// Native-Windows open targets must travel through the shipped launchers rather than relying on
 /// `plugin pane open`, whose relative manifest command is not spawnable there. A targeted launch
 /// must also bypass the idempotent focus/toggle path so the requested location is not ignored by an
@@ -119,11 +118,7 @@ fn windows_launchers_forward_open_target_to_a_fresh_viewer() {
 /// Native Windows should have the same one-command renderer setup story as Unix.
 #[test]
 fn windows_renderer_helper_and_docs_stay_in_sync() {
-    for package_id in [
-        "charmbracelet.glow",
-        "dandavison.delta",
-        "sharkdp.bat",
-    ] {
+    for package_id in ["charmbracelet.glow", "dandavison.delta", "sharkdp.bat"] {
         assert!(
             INSTALL_RENDERERS_PS1.contains(package_id),
             "Windows renderer helper must keep the verified WinGet package id {package_id}"
@@ -135,8 +130,7 @@ fn windows_renderer_helper_and_docs_stay_in_sync() {
         "delta/bat keep a cargo fallback when WinGet is unavailable"
     );
     assert!(
-        README.contains("install-renderers.ps1")
-            && RENDERERS_DOC.contains("install-renderers.ps1"),
+        README.contains("install-renderers.ps1") && RENDERERS_DOC.contains("install-renderers.ps1"),
         "front door and renderer docs must point Windows users at the bundled helper"
     );
 }

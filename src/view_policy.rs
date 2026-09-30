@@ -170,10 +170,7 @@ mod tests {
     #[test]
     fn changed_markdown_cycles_from_document_to_diff_views() {
         assert_eq!(
-            applicable_modes(
-                &fd("CHANGELOG.md", true, true),
-                ChangedFileView::Diff
-            ),
+            applicable_modes(&fd("CHANGELOG.md", true, true), ChangedFileView::Diff),
             vec![
                 ViewMode::RenderedMarkdown,
                 ViewMode::Diff,

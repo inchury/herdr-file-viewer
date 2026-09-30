@@ -190,7 +190,9 @@ fn diff_mode_renders_the_supplied_raw_diff() {
 fn compact_diff_uses_native_semantic_colors() {
     use ratatui::style::{Color, Modifier};
 
-    let prepared = Prepared::Full { text: "ignored".into() };
+    let prepared = Prepared::Full {
+        text: "ignored".into(),
+    };
     let raw = "diff --git a/a.rs b/a.rs\n--- a/a.rs\n+++ b/a.rs\n@@ -1 +1 @@\n-old\n+new";
     let (text, notice) = render(
         &cat(),
@@ -205,7 +207,11 @@ fn compact_diff_uses_native_semantic_colors() {
     let style_for = |prefix: &str| {
         text.lines
             .iter()
-            .find(|line| line.spans.first().is_some_and(|s| s.content.starts_with(prefix)))
+            .find(|line| {
+                line.spans
+                    .first()
+                    .is_some_and(|s| s.content.starts_with(prefix))
+            })
             .and_then(|line| line.spans.first())
             .map(|span| span.style)
             .expect("expected diff line")
@@ -218,7 +224,9 @@ fn compact_diff_uses_native_semantic_colors() {
 
 #[test]
 fn compact_diff_neutralizes_terminal_controls_without_losing_markers() {
-    let prepared = Prepared::Full { text: "ignored".into() };
+    let prepared = Prepared::Full {
+        text: "ignored".into(),
+    };
     let raw = "+safe\x1b[2Jtext\n-removed";
     let (text, _) = render(
         &cat(),

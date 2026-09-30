@@ -1967,9 +1967,10 @@ impl Controller {
                     dim: f.dim,
                 }),
                 title: self.active_display.title(),
-                display_path: self.active_display.displayed_origin().map(|origin| {
-                    origin.root_relative_path().to_string_lossy().into_owned()
-                }),
+                display_path: self
+                    .active_display
+                    .displayed_origin()
+                    .map(|origin| origin.root_relative_path().to_string_lossy().into_owned()),
                 view_mode: self
                     .active_display
                     .presentation()

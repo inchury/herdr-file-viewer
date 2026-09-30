@@ -1263,10 +1263,7 @@ fn active_preview_metadata_shows_relative_path_and_mode_without_changing_default
 fn active_preview_path_uses_middle_ellipsis_when_the_repo_relative_path_is_long() {
     let mut state = sample_state();
     state.active.notices.clear();
-    state.active.display_path = Some(format!(
-        "src/{}/VeryLongName.rs",
-        "deep-segment/".repeat(8)
-    ));
+    state.active.display_path = Some(format!("src/{}/VeryLongName.rs", "deep-segment/".repeat(8)));
     state.active.view_mode = Some(ViewMode::SyntaxContent);
 
     let out = render(&state, 70, 10);

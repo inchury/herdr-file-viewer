@@ -547,7 +547,10 @@ fn tree_row(node: &Node, selected: bool, annotated: bool) -> Line<'static> {
         // extension (including the dot) is DIM. Hidden files such as `.env` are left whole rather
         // than turning the entire name into an "extension". Git foreground colors and selection
         // modifiers stay on both spans.
-        match name.rfind('.').filter(|&cut| cut > 0 && cut + 1 < name.len()) {
+        match name
+            .rfind('.')
+            .filter(|&cut| cut > 0 && cut + 1 < name.len())
+        {
             Some(cut) => {
                 let (stem, extension) = name.split_at(cut);
                 spans.push(Span::styled(stem.to_string(), name_style));
@@ -2051,7 +2054,8 @@ const HELP_TITLE: &str = "Help";
 /// right-aligned one-segment affordance that `?` opens help, visible on the default screen
 /// without opening any modal. Static (first-party), so no sanitization is needed
 /// beyond the defense-in-depth `sanitize_control` applied at the call site (AC-27).
-const HELP_HINT: &str = "↑↓ navigate · ←→ tree · Enter open · v view · / search · Esc close · ? help";
+const HELP_HINT: &str =
+    "↑↓ navigate · ←→ tree · Enter open · v view · / search · Esc close · ? help";
 const HELP_HINT_MEDIUM: &str = "↑↓ navigate · Enter open · v view · Esc close · ? help";
 const HELP_HINT_NARROW: &str = "↑↓ nav · v view · Esc close · ? help";
 
