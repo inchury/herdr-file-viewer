@@ -222,6 +222,8 @@ fn live_file_range_overview_copy_clear_and_modal_isolation() {
 
     send_esc!(session);
     session.send("q").expect("quit after closing the overview");
+    session.expect("Exit file viewer?").expect("exit confirms");
+    session.send("q").expect("confirm exit");
     session
         .expect(Eof)
         .expect("the viewer exits cleanly after all annotation flows");
@@ -336,11 +338,9 @@ fn live_quit_confirm_q_discards_and_exits() {
     }
 }
 
-/// `confirm_discard = false` opts out: `q` quits and discards immediately. Drives the
-/// real binary with a real config file, so it covers the whole wiring path (config parse -> resolve
-/// -> `apply_confirm_discard` -> the guard) that unit tests stub out.
+/// `confirm_discard = false` affects worktree switches; the explicit exit confirmation remains.
 #[test]
-fn live_confirm_discard_false_quits_immediately() {
+fn live_confirm_discard_false_still_confirms_exit() {
     let dir = TempDir::new();
     let root = dir.path();
     std::fs::write(root.join("annotate.txt"), "TOPANNOTATIONMARK\nline two\n").unwrap();
@@ -367,13 +367,16 @@ fn live_confirm_discard_false_quits_immediately() {
         .expect("annotations: 1")
         .expect("the annotation is held");
 
-    // With the guard off, this `q` must exit rather than raise the confirm.
-    session.send("q").expect("quit with the guard disabled");
+    session.send("q").expect("request exit");
+    session
+        .expect("Discard annotations?")
+        .expect("exit still confirms");
+    session.send("q").expect("confirm exit");
     session
         .expect(Eof)
-        .expect("confirm_discard = false quits immediately, no confirm");
+        .expect("confirmation quits and discards");
     match session.get_process().wait().expect("reap the viewer") {
-        WaitStatus::Exited(_, code) => assert_eq!(code, 0, "the opt-out exits cleanly"),
+        WaitStatus::Exited(_, code) => assert_eq!(code, 0, "confirmed exit is clean"),
         other => panic!("expected a clean exit, got {other:?}"),
     }
 }

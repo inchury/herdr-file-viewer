@@ -102,11 +102,9 @@
 # $HERDR_FILE_VIEWER_NO_UPDATE_CHECK also disables it. No separate spotlight setting. Default:
 #update_check = true
 
-# Annotations (`a` / `A`) live only for the session, so both quitting (`q`) and
-# switching worktree (`W`) destroy them. By default either confirms first,
-# offering to copy them to the clipboard on the way out. Set false to skip the
-# confirm and discard immediately. It only appears when annotations are actually
-# held. Default:
+# Annotations (`a` / `A`) live only for the session. A worktree switch (`W`)
+# confirms before discarding them. Set false to skip that switch confirmation.
+# Exiting (`q`) always requires confirmation, even with no annotations. Default:
 #confirm_discard = true
 
 # How many lines the mouse wheel scrolls per event (also how many items it moves

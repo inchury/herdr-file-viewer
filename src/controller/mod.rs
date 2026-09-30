@@ -757,9 +757,8 @@ pub struct Controller {
     baseline: Baseline,
     show_ignored: bool,
     hide_hidden: bool,
-    /// Whether quitting with annotations held raises the discard confirm (config
-    /// `confirm_discard`, default `true`). When `false`, `q` quits and discards, which
-    /// is the pre-confirm behavior.
+    /// Whether switching worktrees with annotations held raises the discard confirm (config
+    /// `confirm_discard`, default `true`). Exiting always requires explicit confirmation.
     confirm_discard: bool,
     /// Whether a chain of single-child directories is drawn as one row (config `compact_dirs`,
     /// default `false`). A session preference carried across a re-root (like `show_ignored` /
@@ -4099,7 +4098,13 @@ mod tests {
             clipboard: Box::new(StubClipboard),
             renderers: None,
         };
-        Controller::new(resolved, Baseline::Head, components)
+        let mut ctrl = Controller::new(resolved, Baseline::Head, components);
+        if is_git_repo {
+            // Initial git discovery is asynchronous; make the changed state observable before
+            // exercising the diff controls.
+            ctrl.changed = ctrl.git.changed_set(Baseline::Head);
+        }
+        ctrl
     }
 
     /// Controller over a temp tree with `src/deep/file.rs` for open-target apply tests.

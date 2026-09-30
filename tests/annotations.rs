@@ -869,14 +869,17 @@ fn annotation_workflows_leave_every_file_byte_and_git_state_unchanged() {
 // --- Quit confirm (session-only annotations are destroyed by quitting) ---
 
 #[test]
-fn quit_with_no_annotations_is_unguarded() {
+fn quit_with_no_annotations_still_confirms_exit() {
     let dir = TempDir::new();
     std::fs::write(dir.path().join("a.rs"), "source\n").unwrap();
     let (mut ctrl, _clipboard) = controller(dir.path(), false);
 
     let fx = ctrl.handle(Intent::Close);
-    assert!(fx.quit, "an empty store quits straight through");
-    assert!(!ctrl.discard_confirm_open());
+    assert!(
+        !fx.quit,
+        "closing always asks for explicit exit confirmation"
+    );
+    assert!(ctrl.discard_confirm_open());
 }
 
 #[test]
@@ -1019,7 +1022,7 @@ fn quit_confirm_owns_every_key_so_none_leaks_to_a_global_action() {
 }
 
 #[test]
-fn confirm_discard_false_quits_without_confirming() {
+fn confirm_discard_false_still_confirms_exit() {
     let dir = TempDir::new();
     std::fs::write(dir.path().join("a.rs"), "source\n").unwrap();
     let (mut ctrl, clipboard) = controller(dir.path(), false);
@@ -1027,8 +1030,14 @@ fn confirm_discard_false_quits_without_confirming() {
     add_file_annotation(&mut ctrl, "kept");
 
     let fx = ctrl.handle(Intent::Close);
-    assert!(fx.quit, "the opt-out restores the immediate-quit behavior");
-    assert!(!ctrl.discard_confirm_open(), "no confirm is raised");
+    assert!(
+        !fx.quit,
+        "the worktree switch opt-out does not bypass exit confirmation"
+    );
+    assert!(
+        ctrl.discard_confirm_open(),
+        "exit confirmation is still raised"
+    );
     assert!(
         clipboard.lock().unwrap().calls.is_empty(),
         "opting out of the confirm never writes the clipboard"

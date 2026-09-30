@@ -105,6 +105,8 @@ fn finder_routes_printable_keys_to_query_and_enter_confirms_esc_cancels() {
 
     // Clean exit — no finder key crashed the run loop.
     s.send("q").expect("send close");
+    s.expect("Exit file viewer?").expect("exit confirms");
+    s.send("q").expect("confirm exit");
     s.expect(Eof)
         .expect("the viewer terminates cleanly after the finder flow");
     match s.get_process().wait().expect("reap the viewer") {
@@ -197,6 +199,8 @@ fn every_keyboard_function_drives_the_viewer_and_it_exits_cleanly() {
 
     // The close key returns control and exits cleanly (AC-20).
     s.send("q").expect("send close");
+    s.expect("Exit file viewer?").expect("exit confirms");
+    s.send("q").expect("confirm exit");
     s.expect(Eof)
         .expect("the viewer terminates after the close key");
     match s.get_process().wait().expect("reap the viewer") {
@@ -303,6 +307,8 @@ fn worktree_picker_switches_root_by_keyboard_and_exits_cleanly() {
     // the pty stream (keeps the un-zoom then quit sequence distinct).
     std::thread::sleep(Duration::from_millis(150));
     s.send("q").expect("send close (quit)");
+    s.expect("Exit file viewer?").expect("exit confirms");
+    s.send("q").expect("confirm exit");
     s.expect(Eof)
         .expect("the viewer terminates after the close key");
     let status = s.get_process().wait().expect("reap the viewer");
@@ -429,6 +435,8 @@ fn go_to_line_jumps_to_a_source_line_and_opens_in_markdown_too() {
     // apart so crossterm reads a lone ESC (not Alt+char). Stays a short sleep.
     std::thread::sleep(Duration::from_millis(150));
     s.send("q").expect("send close");
+    s.expect("Exit file viewer?").expect("exit confirms");
+    s.send("q").expect("confirm exit");
     s.expect(Eof)
         .expect("the viewer terminates cleanly after the go-to-line flow");
     match s.get_process().wait().expect("reap the viewer") {
@@ -577,6 +585,8 @@ fn search_routes_keys_to_query_and_n_cycles_and_esc_restores() {
 
     // Step 9: clean exit — no search key crashed the run loop (AC-21).
     s.send("q").expect("quit");
+    s.expect("Exit file viewer?").expect("exit confirms");
+    s.send("q").expect("confirm exit");
     s.expect(Eof)
         .expect("the viewer terminates cleanly after the search flow");
     match s.get_process().wait().expect("reap the viewer") {

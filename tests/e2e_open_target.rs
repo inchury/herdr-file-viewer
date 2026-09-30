@@ -38,7 +38,7 @@ fn open_flag_shows_nested_file_and_line_marker() {
     s.expect("LINE3_OPEN_TARGET_MARKER")
         .expect("content of the opened file (line 3) must be visible");
 
-    s.send("q").expect("send close");
+    s.send("qqq").expect("close and confirm exit");
     s.expect(Eof).expect("viewer terminates after close");
     match s.get_process().wait().expect("reap") {
         WaitStatus::Exited(_, code) => assert_eq!(code, 0),
@@ -63,7 +63,7 @@ fn open_env_shows_file() {
     s.expect("ENV_OPEN_MARKER")
         .expect("env-selected file content");
 
-    s.send("q").unwrap();
+    s.send("qqq").unwrap();
     s.expect(Eof).unwrap();
     match s.get_process().wait().unwrap() {
         WaitStatus::Exited(_, code) => assert_eq!(code, 0),
@@ -90,7 +90,7 @@ fn open_flag_wins_over_env() {
     s.expect("FLAG_WINS_MARKER")
         .expect("flag path content wins over env");
 
-    s.send("q").unwrap();
+    s.send("qqq").unwrap();
     s.expect(Eof).unwrap();
     match s.get_process().wait().unwrap() {
         WaitStatus::Exited(_, code) => assert_eq!(code, 0),
@@ -116,7 +116,7 @@ fn unknown_arg_still_starts_viewer() {
     s.expect("STILL_STARTS")
         .expect("default selection still renders");
 
-    s.send("q").unwrap();
+    s.send("qqq").unwrap();
     s.expect(Eof).unwrap();
     match s.get_process().wait().unwrap() {
         WaitStatus::Exited(_, code) => assert_eq!(code, 0),

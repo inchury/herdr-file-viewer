@@ -38,6 +38,8 @@ fn non_git_directory_browses_and_renders_with_git_keys_inert() {
     }
 
     s.send("q").expect("send close");
+    s.expect("Exit file viewer?").expect("exit confirms");
+    s.send("q").expect("confirm exit");
     s.expect(Eof)
         .expect("the viewer terminates after the close key");
     match s.get_process().wait().expect("reap the viewer") {
