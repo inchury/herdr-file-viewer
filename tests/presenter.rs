@@ -3503,7 +3503,7 @@ fn help_state() -> ViewState {
             "Herdr File Viewer\n\
              A git-aware, read-only file viewer\n\
              \n\
-             github.com/smarzban/herdr-file-viewer\n\
+             github.com/inchury/herdr-file-viewer\n\
              \n\
              v1.13.0 · Up to date\n\
              MIT License\n\
@@ -3553,7 +3553,7 @@ fn help_whats_new_body_preserves_the_controllers_composed_document_order() {
             "SPOTLIGHT-FIRST\n\n\
              DETAILS-SECOND\n\
              To install this update, run:\n\n\
-                 herdr plugin install smarzban/herdr-file-viewer\n\n\
+                 herdr plugin install inchury/herdr-file-viewer\n\n\
              EMBEDDED-THIRD",
         ),
         scroll: 0,
@@ -3570,7 +3570,7 @@ fn help_whats_new_body_preserves_the_controllers_composed_document_order() {
         "the Help body stays in controller-composed order:\n{output}"
     );
     assert!(
-        output.contains("herdr plugin install smarzban/herdr-file-viewer"),
+        output.contains("herdr plugin install inchury/herdr-file-viewer"),
         "the fixed install command is displayed as body text:\n{output}"
     );
 }
