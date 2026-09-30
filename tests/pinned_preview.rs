@@ -187,11 +187,13 @@ fn controller(root: &Path) -> Controller {
         clipboard: Box::new(common::RecordingClipboard::default()),
         renderers: None,
     };
-    Controller::new(
+    let mut ctrl = Controller::new(
         common::resolved(root.to_path_buf(), root.join(".git").is_dir()),
         Baseline::Head,
         components,
-    )
+    );
+    await_status_refresh(&mut ctrl);
+    ctrl
 }
 
 /// Build a controller whose clipboard log remains observable after construction.
@@ -219,6 +221,29 @@ fn controller_with_recording_clipboard(root: &Path) -> (Controller, Arc<Mutex<Ve
 
 fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
+}
+
+fn await_status_refresh(ctrl: &mut Controller) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while ctrl.status_refresh_pending() {
+        ctrl.poll();
+        assert!(Instant::now() < deadline, "initial Git state never arrived");
+        std::thread::yield_now();
+    }
+}
+
+fn await_named_branch(ctrl: &mut Controller, expected: &str) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while ctrl.active_document().is_none_or(|doc| {
+        doc.origin().branch() != &herdr_file_viewer::preview::BranchState::Named(expected.into())
+    }) {
+        ctrl.poll();
+        assert!(
+            Instant::now() < deadline,
+            "{expected} preview never rendered"
+        );
+        std::thread::yield_now();
+    }
 }
 
 fn await_content(ctrl: &mut Controller) {
@@ -526,7 +551,12 @@ fn close_from_pinned_focus_dismisses_the_visible_active_search_before_quitting()
     );
 
     let fx = ctrl.handle(Intent::Close);
-    assert!(fx.quit, "with no search left, close quits");
+    assert!(!fx.quit, "with no search left, close confirms exit");
+    assert!(ctrl.discard_confirm_open());
+    assert!(
+        ctrl.handle_discard_confirm_key(key(KeyCode::Char('q')))
+            .quit
+    );
 }
 
 #[test]
@@ -549,7 +579,11 @@ fn close_from_pinned_focus_quits_past_a_hidden_active_search() {
     });
 
     let fx = ctrl.handle(Intent::Close);
-    assert!(fx.quit, "no visible search stands between close and quit");
+    assert!(
+        !fx.quit,
+        "no visible search stands between close and exit confirmation"
+    );
+    assert!(ctrl.discard_confirm_open());
     assert!(
         ctrl.active_interaction().search.is_some(),
         "the hidden active search was not consumed on the way out"
@@ -588,7 +622,12 @@ fn close_from_active_focus_dismisses_the_visible_pinned_search_before_quitting()
     );
 
     let fx = ctrl.handle(Intent::Close);
-    assert!(fx.quit, "with no search left, close quits");
+    assert!(!fx.quit, "with no search left, close confirms exit");
+    assert!(ctrl.discard_confirm_open());
+    assert!(
+        ctrl.handle_discard_confirm_key(key(KeyCode::Char('q')))
+            .quit
+    );
 }
 
 #[test]
@@ -1688,6 +1727,7 @@ fn changed_file_jumps_from_pinned_focus_retarget_only_the_active_preview() {
         Baseline::Head,
         components,
     );
+    await_status_refresh(&mut ctrl);
     await_active_relative_path(&mut ctrl, "a.rs");
     {
         let active = ctrl.active_interaction_mut();
@@ -1793,7 +1833,7 @@ fn branch_changed_pin_replacement_names_named_and_detached_states() {
             .success()
     );
     let mut ctrl = controller(dir.path());
-    await_content(&mut ctrl);
+    await_named_branch(&mut ctrl, "main");
     ctrl.pin_active_preview();
 
     assert!(
@@ -1806,7 +1846,7 @@ fn branch_changed_pin_replacement_names_named_and_detached_states() {
         "git fixture switches branch"
     );
     ctrl.handle(Intent::Refresh);
-    await_content(&mut ctrl);
+    await_named_branch(&mut ctrl, "feature");
     ctrl.pin_active_preview();
     assert_eq!(
         ctrl.action_notice(),
